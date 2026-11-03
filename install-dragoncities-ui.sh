@@ -51,11 +51,15 @@ elif sha256sum -c "$HERE/baseline.sha256" >/dev/null 2>&1 && check_absent "$HERE
     git -c core.autocrlf=false apply --check --whitespace=error "$HERE/vendor/liquid-glass-theme-v1.15.2.patch"
 elif sha256sum -c "$HERE/upgrade.sha256" >/dev/null 2>&1 && check_absent "$HERE/upgrade-absent.txt"; then
     install_mode=upgrade
+elif sha256sum -c "$HERE/prior-release.sha256" >/dev/null 2>&1 && [ -f public/branding/brand.json ]; then
+    install_mode=upgrade
 else
     echo 'Official v1.15.2 source comparison:' >&2
     sha256sum -c "$HERE/baseline.sha256" >&2 || true
     echo 'Previous DragonCities UI source comparison:' >&2
     sha256sum -c "$HERE/upgrade.sha256" >&2 || true
+    echo 'Previous packaged release source comparison:' >&2
+    sha256sum -c "$HERE/prior-release.sha256" >&2 || true
     die 'Unrecognized frontend modifications. Restore the previous theme backup first; no forced patching was attempted.'
 fi
 echo "Install mode: $install_mode"
@@ -73,8 +77,15 @@ backup="${BACKUP_DIR:-$HOME}/ptero-ui-backup-$(date +%Y%m%d-%H%M%S)-dragoncities
 tar -czf "$backup" -C "$PANEL_DIR" "${existing_files[@]}" public/assets yarn.lock -C "$temporary" __dragoncities_backup__/added-files.txt
 echo "FRONTEND_BACKUP=$backup"
 trap 'printf "\nInstallation stopped. Restore with:\nPANEL_DIR=%q bash %q --revert %q\n" "$PANEL_DIR" "$HERE/install-dragoncities-ui.sh" "$backup" >&2' ERR
+branding_files=()
+if [ -f public/branding/brand.json ]; then
+    for file in brand.json panel-logo.png manifest.json browserconfig.xml; do
+        [ ! -f "public/branding/$file" ] || branding_files+=("public/branding/$file")
+    done
+fi
 if [ "$install_mode" = clean ]; then git -c core.autocrlf=false apply "$HERE/vendor/liquid-glass-theme-v1.15.2.patch"; fi
 cp -a "$HERE/overlay/." "$PANEL_DIR/"
+if [ "${#branding_files[@]}" -gt 0 ]; then tar -xzf "$backup" -C "$PANEL_DIR" "${branding_files[@]}"; fi
 sha256sum -c "$HERE/final-source.sha256"
 node "$HERE/tools/configure-brand.cjs"
 yarn install --frozen-lockfile --ignore-engines

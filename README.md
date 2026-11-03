@@ -34,7 +34,7 @@ A glass-style interface and configurable branding for Pterodactyl Panel v1.15.2.
 ```bash
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.2
+git checkout v1.0.3
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 ```
@@ -42,6 +42,12 @@ PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 建議將此儲存庫放在家目錄等面板以外的位置。公開版本與安裝包可從 [Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 取得。
 
 若已裝其他主題，請先閱讀來源相容性說明；不要直接將檔案拖進面板覆蓋。安裝器只接受可核對的來源版本，不提供強制套用選項。
+
+## 交給 AI 安裝
+
+請使用 **[可直接複製的 AI 安裝指令、注意事項與最低能力需求](docs/AI-INSTALL.md)**；另有 [English](docs/AI-INSTALL.en.md)。填入你的 SSH 連線資料、面板路徑及品牌設定即可，密碼與金鑰內容不要貼進聊天。
+
+AI 必須具備終端機／SSH 工具，才能代為安裝；純聊天只能提供操作指引。本主題不需要在面板主機上運行 AI 模型。主機仍需符合 Node.js、Yarn、PHP 及建置資源需求，請勿把「AI 模型規格」與「面板主機規格」混為一談。
 
 ## 自訂名稱與 Logo
 

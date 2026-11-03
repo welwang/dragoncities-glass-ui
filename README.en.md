@@ -32,7 +32,7 @@ Read the **[complete installation, configuration, troubleshooting, and restore g
 ```bash
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.2
+git checkout v1.0.3
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 ```
@@ -40,6 +40,12 @@ PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 Keep this repository outside the panel directory, for example in your home directory. Versioned installation packages are available from [Releases](https://github.com/welwang/dragoncities-glass-ui/releases).
 
 If another theme is installed, read the source compatibility section before proceeding. Do not drag files into the panel to overwrite them. The installer accepts recognized source versions and does not provide a forced-patching option.
+
+## Install with an AI assistant
+
+Use the **[copyable AI installation prompt, precautions, and minimum capabilities](docs/AI-INSTALL.en.md)**, also available in [繁體中文](docs/AI-INSTALL.md). Fill in your SSH connection details, panel directory, and branding; keep passwords and private-key contents out of chat.
+
+The assistant needs terminal/SSH tools to install on your behalf; a chat-only model can provide instructions. The theme does not require an AI model running on the panel host. Node.js, Yarn, PHP, and build headroom are still required; AI-model specifications and panel-host requirements are separate.
 
 ## Custom name and logo
 

@@ -2,7 +2,9 @@
 
 **繁體中文** | [English](INSTALL.en.md)
 
-本文件適用於 DragonCities Glass UI **1.0.2**，目標面板為 **Pterodactyl v1.15.2**。
+本文件適用於 DragonCities Glass UI **1.0.3**，目標面板為 **Pterodactyl v1.15.2**。
+
+委託助手操作請先閱讀 [AI 安裝指令、注意事項與最低能力需求](AI-INSTALL.md)。
 
 ## 先了解安裝範圍
 
@@ -50,12 +52,13 @@ npm install --global yarn@1.22.22
 
 ## 可接受的原始碼狀態
 
-安裝器只接受以下兩種來源：
+安裝器只接受以下三種來源：
 
 1. 乾淨的官方 v1.15.2 前端：以 SHA256 核對既有檔案，確認新增檔案尚不存在，再以 `git apply --check --whitespace=error` 檢查基礎 patch。
 2. 可完整核對的既有 DragonCities UI：Liquid Glass v9、銀白 Logo、雙排 Bar、全局動畫速度及切頁修正的指定整合版本。
+3. 可完整核對的 DragonCities Glass UI 1.0.1／1.0.2 固定來源，且品牌設定檔存在；自訂品牌名稱與 Logo 會保留。
 
-第二種來源會直接加入本版整合檔案，不重複套用基礎 patch。如果已經是相同的固定來源版本，工具會提示已安裝；更換名稱或 Logo 請使用品牌設定入口。
+第二、三種來源會直接加入本版整合檔案，不重複套用基礎 patch。如果已經是相同的固定來源版本，工具會提示已安裝；更換名稱或 Logo 請使用品牌設定入口。1.0.3 移除 Logo 外層的圓形背景與內陰影，不裁切圖片。
 
 其他舊版、第三方主題或手動修改過的檔案不保證可直接升級。若來源無法核對，安裝器會停止並列出差異，請使用原主題的還原功能或安裝前備份回復；不要使用 force、`--reject`、`--3way` 或手動修改 patch 來跳過來源核對。
 
@@ -69,7 +72,7 @@ npm install --global yarn@1.22.22
 cd ~
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.2
+git checkout v1.0.3
 sha256sum -c SHA256SUMS
 ```
 
@@ -77,11 +80,11 @@ sha256sum -c SHA256SUMS
 
 ## 下載方式二：Release ZIP
 
-到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.0.2.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
+到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.0.3.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
 
 ```powershell
-scp -P 23 .\DragonCities-Glass-UI-v1.0.2.zip 帳號@主機IP:~/
-scp -P 23 .\DragonCities-Glass-UI-v1.0.2.zip.sha256 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip.sha256 帳號@主機IP:~/
 ssh -p 23 帳號@主機IP
 ```
 
@@ -89,10 +92,10 @@ ssh -p 23 帳號@主機IP
 
 ```bash
 cd ~
-sha256sum -c DragonCities-Glass-UI-v1.0.2.zip.sha256
+sha256sum -c DragonCities-Glass-UI-v1.0.3.zip.sha256
 mkdir -p ~/dragoncities-ui-release
-unzip DragonCities-Glass-UI-v1.0.2.zip -d ~/dragoncities-ui-release
-cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.2
+unzip DragonCities-Glass-UI-v1.0.3.zip -d ~/dragoncities-ui-release
+cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.3
 sha256sum -c SHA256SUMS
 ```
 
@@ -238,7 +241,7 @@ PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh \
 python3 tools/build-release.py
 ```
 
-需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.0.2.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
+需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.0.3.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
 
 ## 授權與署名
 
