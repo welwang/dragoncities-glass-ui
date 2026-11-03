@@ -1,5 +1,7 @@
 # 銀白龍 Logo 與品牌素材
 
+**繁體中文** | [English](ASSETS-LICENSE.en.md)
+
 Copyright (c) 2026 **小黑柴（dc_id: 小黑柴）**。保留品牌素材的著作權。
 
 本說明適用於：

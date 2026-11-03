@@ -1,5 +1,7 @@
 # Copyright and attribution / 版權與署名
 
+**繁體中文** | [English](NOTICE.en.md)
+
 ## DragonCities Glass UI
 
 Copyright (c) 2026 **小黑柴（dc_id: 小黑柴）**。

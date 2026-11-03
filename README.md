@@ -1,5 +1,7 @@
 # DragonCities Glass UI
 
+**繁體中文** | [English](README.en.md)
+
 **Pterodactyl Panel v1.15.2 的玻璃介面主題與品牌設定工具。**
 
 A glass-style interface and configurable branding for Pterodactyl Panel v1.15.2. Independent community project. Source code: MIT; bundled logo: separate asset terms.
@@ -32,7 +34,7 @@ A glass-style interface and configurable branding for Pterodactyl Panel v1.15.2.
 ```bash
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.1
+git checkout v1.0.2
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 ```
@@ -62,6 +64,12 @@ bash configure-brand.sh
 ```
 
 名稱支援 1～48 個字元；Logo 支援 PNG，建議透明背景、正方形。省略某個設定會保留目前值。安裝後更改品牌不需要重新編譯，重新整理瀏覽器即可。品牌圖像的使用範圍請見下方素材說明。
+
+## 資源消耗
+
+日常執行時，主題新增的主機端工作主要是送出靜態檔案與讀取小型品牌 JSON；沒有新增常駐 Node.js 服務。主機較高的 CPU／記憶體需求集中在安裝建置階段，玻璃折射與動畫主要消耗使用者瀏覽器的 CPU、繪圖資源與記憶體。
+
+請閱讀 **[資源評估與原因分析](docs/RESOURCES.md)**，其中區分實測值、檔案大小與推算，並說明高解析度、卡片數量、捲動及慢速動畫的影響。資源門檻不是固定的執行時用量保證。
 
 ## 還原
 

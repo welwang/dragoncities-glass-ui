@@ -1,6 +1,8 @@
 # 安裝、品牌設定與還原
 
-本文件適用於 DragonCities Glass UI **1.0.1**，目標面板為 **Pterodactyl v1.15.2**。
+**繁體中文** | [English](INSTALL.en.md)
+
+本文件適用於 DragonCities Glass UI **1.0.2**，目標面板為 **Pterodactyl v1.15.2**。
 
 ## 先了解安裝範圍
 
@@ -25,6 +27,8 @@
 | 權限 | 面板目錄與備份位置可寫入，PHP 執行帳號可讀取安裝後的來源與公開資產 |
 
 預設面板目錄為 `/var/www/pterodactyl`。若你的路徑不同，每次都使用正確的 `PANEL_DIR`。
+
+建置、日常執行與瀏覽器繪圖的用量不同，請參閱 [資源評估](RESOURCES.md)。2 GiB 是安裝器最低門檻，不是足夠容量的保證；依本機建置參考，建議在既有系統與遊戲負載之外，另預留約 3～4 GiB 可用記憶體餘裕。
 
 先確認工具：
 
@@ -65,7 +69,7 @@ npm install --global yarn@1.22.22
 cd ~
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.1
+git checkout v1.0.2
 sha256sum -c SHA256SUMS
 ```
 
@@ -73,11 +77,11 @@ sha256sum -c SHA256SUMS
 
 ## 下載方式二：Release ZIP
 
-到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.0.1.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
+到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.0.2.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
 
 ```powershell
-scp -P 23 .\DragonCities-Glass-UI-v1.0.1.zip 帳號@主機IP:~/
-scp -P 23 .\DragonCities-Glass-UI-v1.0.1.zip.sha256 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.0.2.zip 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.0.2.zip.sha256 帳號@主機IP:~/
 ssh -p 23 帳號@主機IP
 ```
 
@@ -85,10 +89,10 @@ ssh -p 23 帳號@主機IP
 
 ```bash
 cd ~
-sha256sum -c DragonCities-Glass-UI-v1.0.1.zip.sha256
+sha256sum -c DragonCities-Glass-UI-v1.0.2.zip.sha256
 mkdir -p ~/dragoncities-ui-release
-unzip DragonCities-Glass-UI-v1.0.1.zip -d ~/dragoncities-ui-release
-cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.1
+unzip DragonCities-Glass-UI-v1.0.2.zip -d ~/dragoncities-ui-release
+cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.2
 sha256sum -c SHA256SUMS
 ```
 
@@ -234,7 +238,7 @@ PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh \
 python3 tools/build-release.py
 ```
 
-需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.0.1.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
+需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.0.2.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
 
 ## 授權與署名
 
