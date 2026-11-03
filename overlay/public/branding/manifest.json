@@ -1,0 +1,13 @@
+{
+  "name": "DragonCities",
+  "short_name": "DragonCities",
+  "start_url": "/",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/branding/panel-logo.png?v=731c39be91cf",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}

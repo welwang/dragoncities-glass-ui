@@ -1,0 +1,581 @@
+/*
+ * 系統主題：元件「角色」規則。
+ * 每個共用元件只標記自己的角色，外觀統一在這裡定義，不在個別頁面客製。
+ *
+ *   玻璃控制層（浮在內容上方）  .lg + 角色
+ *     sys-bar     導覽列、分頁列
+ *     sys-sheet   對話框、彈出視窗
+ *     sys-menu    下拉選單、右鍵選單
+ *     sys-tip     提示框
+ *     sys-float   浮動工具列（例如檔案多選時的操作列）
+ *
+ *   實心內容層
+ *     內容框、卡片、輸入框直接用 tokens.js 的色階（700 / 600），不需要額外 class
+ *
+ *   交互
+ *     sys-press   實心控制項的按壓回饋（按鈕、清單列）
+ */
+
+/* ---------- 模式相關的疊加色（深色 / 淺色） ---------- */
+:root {
+    --sys-hover: rgba(255, 255, 255, 0.08);
+    --sys-select: rgba(255, 255, 255, 0.14);
+    --sys-select-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
+    --sys-glow: rgba(255, 255, 255, 0.12);
+}
+
+:root[data-theme='light'] {
+    --sys-hover: rgba(0, 0, 0, 0.06);
+    --sys-select: rgba(255, 255, 255, 0.92);
+    --sys-select-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+    --sys-glow: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- 玻璃控制層 ---------- */
+.sys-bar {
+    --lg-radius: 9999px;
+    /* 液態感：兩端的厚邊更寬、折射更深；--lg-content = 列上文字在邊緣被折彎的程度（0–1） */
+    --lg-bezel: 26;
+    --lg-strength: 1;
+    --lg-content: 0.16;
+}
+
+.sys-sheet {
+    --lg-radius: 28px;
+    --lg-fill-top: rgba(44, 44, 50, 0.72);
+    --lg-fill: rgba(28, 28, 32, 0.66);
+    --lg-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.sys-menu {
+    z-index: 60;
+    --lg-radius: 20px;
+    --lg-fill-top: rgba(46, 46, 52, 0.7);
+    --lg-fill: rgba(30, 30, 34, 0.64);
+    --lg-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.3);
+    padding: 6px;
+}
+
+.sys-tip {
+    z-index: 70;
+    --lg-radius: 12px;
+    --lg-fill-top: rgba(50, 50, 56, 0.78);
+    --lg-fill: rgba(34, 34, 38, 0.74);
+    --lg-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
+}
+
+.sys-float {
+    --lg-radius: 9999px;
+    --lg-fill-top: rgba(46, 46, 52, 0.6);
+    --lg-fill: rgba(30, 30, 34, 0.55);
+}
+
+/* 淺色模式的玻璃濃度：白色磨砂，陰影更輕。
+   導覽列 / 分頁列要比內容層更不透明，捲到深色內容（例如終端機）上面時字才讀得清楚 */
+[data-theme='light'] .sys-bar {
+    --lg-fill-top: rgba(255, 255, 255, 0.5);
+    --lg-fill: rgba(255, 255, 255, 0.28);
+}
+
+
+[data-theme='light'] .sys-sheet {
+    --lg-fill-top: rgba(255, 255, 255, 0.76);
+    --lg-fill: rgba(250, 250, 252, 0.64);
+    --lg-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .sys-menu {
+    --lg-fill-top: rgba(255, 255, 255, 0.74);
+    --lg-fill: rgba(248, 248, 250, 0.62);
+    --lg-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .sys-tip {
+    --lg-fill-top: rgba(255, 255, 255, 0.86);
+    --lg-fill: rgba(248, 248, 250, 0.82);
+    --lg-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='light'] .sys-float {
+    --lg-fill-top: rgba(255, 255, 255, 0.56);
+    --lg-fill: rgba(248, 248, 250, 0.36);
+}
+
+/* 自適應：淺色模式下玻璃列浮在深色內容上時（liquid-glass.js 加上 .lg-over-dark），
+   像 iOS 一樣轉成深色玻璃、白色文字；色階變數由 GlobalStylesheet 換成深色那一套 */
+[data-theme='light'] .lg-over-dark {
+    --lg-fill-top: rgba(44, 44, 50, 0.5);
+    --lg-fill: rgba(28, 28, 32, 0.38);
+    --lg-hairline: rgba(255, 255, 255, 0.14);
+    --lg-bright: 0.92;
+    --sys-hover: rgba(255, 255, 255, 0.1);
+    --sys-select: rgba(255, 255, 255, 0.18);
+    --sys-select-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
+    --sys-glow: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 0 0 0.5px var(--lg-hairline), inset 0 1px 0.5px rgba(255, 255, 255, 0.2), var(--lg-shadow);
+}
+
+.sys-bar,
+.sys-float {
+    transition: color 0.3s ease;
+}
+
+/* 導覽列與分頁列裡的連結：選取狀態是一顆膠囊，不是底線 */
+.sys-bar a,
+.sys-bar button,
+.sys-bar .navigation-link {
+    border-radius: 9999px;
+    transition: background-color 0.25s ease, color 0.25s ease, transform 0.5s var(--lg-spring);
+}
+
+.sys-bar a:hover,
+.sys-bar button:hover,
+.sys-bar .navigation-link:hover {
+    background-color: var(--sys-hover);
+}
+
+.sys-bar a.active {
+    background-color: var(--sys-select);
+}
+
+.sys-bar a:active,
+.sys-bar button:active {
+    transform: scale(0.94);
+}
+
+/* 選取膠囊（liquid-glass.js 會在選項的父層設定 --ind-*），切換時用彈簧滑動 */
+.lg-ind {
+    position: relative;
+    isolation: isolate;
+}
+
+.lg-ind::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: -1;
+    width: var(--ind-w, 0);
+    height: var(--ind-h, 0);
+    transform: translate(var(--ind-x, 0), var(--ind-y, 0));
+    border-radius: 9999px;
+    background: var(--sys-select);
+    box-shadow: var(--sys-select-shadow);
+    opacity: var(--ind-o, 0);
+    pointer-events: none;
+    transition: transform 0.55s var(--lg-spring), width 0.55s var(--lg-spring), height 0.55s var(--lg-spring),
+        opacity 0.2s ease;
+}
+
+.lg-ind-still::before {
+    transition: none;
+}
+
+.lg-ind > a.active,
+.lg-ind > .active {
+    background-color: transparent !important;
+}
+
+/* 透鏡（liquid-glass.js 建立）：膠囊移動時的放大鏡。
+   裡面是玻璃列內容的副本，以矢量放大（字清晰）。外層只負責平移（獨立圖層，移動不掉幀），
+   玻璃外觀和鼓起的縮放在 .sys-lens-view；不用 backdrop-filter（每幀重算模糊會掉幀），
+   用接近不透明的亮玻璃色蓋住底下原本的字，質感由高光、厚度和放大的副本呈現 */
+.sys-lens {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 45;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+    will-change: transform, opacity;
+}
+
+.sys-lens.on {
+    opacity: 1;
+    transition-duration: 0.12s;
+}
+
+.sys-lens-view {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    transform-origin: 50% 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.1)), rgb(52, 52, 58);
+    box-shadow:
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.26),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -10px 16px -12px rgba(255, 255, 255, 0.18),
+        0 10px 26px -10px rgba(0, 0, 0, 0.55),
+        0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.sys-lens-ink {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+[data-theme='light'] .sys-lens-view {
+    background: linear-gradient(180deg, #ffffff, #fafafd 55%, #f4f5fa);
+    box-shadow:
+        inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.6),
+        0 12px 26px -10px rgba(20, 30, 70, 0.3),
+        0 1px 3px rgba(20, 30, 70, 0.12);
+}
+
+/* 副本裡的字：放大後用最亮的文字色，背景、膠囊、互動效果全部拿掉 */
+.sys-lens-clone,
+.sys-lens-clone * {
+    pointer-events: none !important;
+    transition: none !important;
+    animation: none !important;
+}
+
+.sys-lens-clone {
+    background: none !important;
+    box-shadow: none !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    text-shadow: none !important;
+}
+
+.sys-lens-clone a,
+.sys-lens-clone button,
+.sys-lens-clone .navigation-link {
+    color: rgb(var(--c-gray-50)) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+}
+
+
+
+/* 透鏡移動時藏起原本的膠囊（交叉淡換，不瞬間消失） */
+.lg-ind-traveling::before {
+    opacity: 0 !important;
+    transition: opacity 0.12s ease !important;
+}
+
+/* 玻璃列裡可滑動的內容：捲到哪一邊，另一邊就漸隱，文字不會被圓角切斷 */
+[data-lg-scroll='start'] {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+[data-lg-scroll='end'] {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
+}
+
+[data-lg-scroll='middle'] {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+}
+
+/* ---------- 防劇透霧面玻璃（IP、連線位址；system-theme/Spoiler.tsx） ----------
+   霧面玻璃：玻璃後面的字被模糊成一片光暈，表面一層淡白霧，四周羽化、融進背景，沒有框線；
+   揭開時像玻璃退霧，模糊一路降到 0、玻璃淡出。
+   （字的模糊直接做在文字上：Chrome 的 backdrop-filter 不會模糊同一個元素裡的文字） */
+:root {
+    /* 磨砂玻璃不是一塊平平的灰：上方受光、中間透著背後的柔光、下緣有一點反光 */
+    --frost-sheet: radial-gradient(130% 120% at 50% 0%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07) 55%, rgba(255, 255, 255, 0.03) 80%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.06));
+    --frost-fill: rgba(72, 74, 84, 0.22);
+    --frost-glow: 0.62;
+    --frost-blur: max(11px, 0.85em);
+}
+
+:root[data-theme='light'] {
+    --frost-sheet: radial-gradient(130% 120% at 50% 0%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.3) 55%, rgba(255, 255, 255, 0.2) 80%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.22));
+    --frost-fill: rgba(214, 220, 236, 0.34);
+    --frost-glow: 0.7;
+    --frost-blur: max(14px, 1.05em);
+}
+
+.sys-spoiler {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: bottom;
+    border-radius: 8px;
+    isolation: isolate;
+}
+
+.sys-spoiler-block {
+    display: block;
+    border-radius: 14px;
+}
+
+.sys-spoiler-block > .sys-spoiler-content {
+    display: block;
+}
+
+.sys-spoiler-content {
+    transition: filter 0.55s ease, opacity 0.45s ease;
+}
+
+.sys-spoiler[data-hidden] {
+    cursor: pointer;
+}
+
+/* 霧化半徑跟著字級（em）走：要大到每個字完全融成一道連續的柔光，
+   看不出一顆一顆的字形，才不會像馬賽克或打碼，而是像光透過磨砂玻璃散開 */
+.sys-spoiler[data-hidden] > .sys-spoiler-content {
+    filter: blur(var(--frost-blur)) saturate(160%);
+    opacity: var(--frost-glow);
+    user-select: none;
+    pointer-events: none;
+}
+
+.sys-spoiler::after {
+    content: '';
+    position: absolute;
+    /* 玻璃從中心往四周漸漸變透明，邊緣融進背景，沒有框線。
+       羽化由 .sys-spoiler 的遮罩完成（見上面），外層容器就算會裁切也不會切出硬邊 */
+    inset: 0;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: var(--frost-sheet), var(--frost-fill);
+    opacity: 0;
+    transform: scale(1.04);
+    transition: opacity 0.45s ease, transform 0.6s var(--lg-spring);
+}
+
+/* 羽化寬度註冊成可以做動畫的長度：揭開時羽化平滑縮到 0，邊緣不會突然變硬 */
+@property --frost-fx {
+    syntax: '<length-percentage>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --frost-fy {
+    syntax: '<length-percentage>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+/* 遮罩套在整個 IP 元素上：玻璃和被模糊的字一起往四周淡出、融進背景。
+   淡出用緩入緩出的曲線（不是直線），看不出從哪裡開始；水平寬羽化，垂直從中線一路淡到上下緣，
+   整片玻璃像一團柔和的霧，四個角也是圓滑地消失 */
+.sys-spoiler {
+    --frost-fx: 0px;
+    --frost-fy: 0px;
+    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) calc(var(--frost-fx) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fx) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fx) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fx) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fx) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fx) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fx) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fx) * 0)),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0) calc(var(--frost-fy) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fy) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fy) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fy) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fy) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fy) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fy) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fy) * 0));
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) calc(var(--frost-fx) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fx) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fx) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fx) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fx) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fx) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fx) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fx) * 0)),
+        linear-gradient(to bottom, rgba(0, 0, 0, 0) calc(var(--frost-fy) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fy) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fy) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fy) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fy) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fy) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fy) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fy) * 0));
+    mask-composite: intersect;
+    transition: --frost-fx 0.55s ease, --frost-fy 0.55s ease;
+}
+
+.sys-spoiler[data-hidden] {
+    --frost-fx: 22px;
+    --frost-fy: 50%;
+}
+
+.sys-spoiler-block[data-hidden] {
+    --frost-fx: 32px;
+    --frost-fy: 50%;
+}
+
+.sys-spoiler[data-hidden]::after {
+    opacity: 1;
+    transform: none;
+}
+
+/* 滑過時霧稍微變薄，提示可以點 */
+.sys-spoiler[data-hidden]:hover > .sys-spoiler-content {
+    filter: blur(calc(var(--frost-blur) * 0.85)) saturate(170%);
+}
+
+.sys-spoiler[data-hidden]:active::after {
+    transform: scale(0.97);
+}
+
+/* ---------- 控制台防劇透霧面玻璃（Console.tsx） ---------- */
+.sys-frost {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: inherit;
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 40%, rgba(255, 255, 255, 0.05)), rgba(24, 24, 28, 0.3);
+    -webkit-backdrop-filter: blur(0px);
+    backdrop-filter: blur(0px);
+    box-shadow:
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease, -webkit-backdrop-filter 0.5s ease, backdrop-filter 0.5s ease, visibility 0s linear 0.5s;
+}
+
+.sys-frost[data-on] {
+    opacity: 1;
+    visibility: visible;
+    -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(1.05);
+    backdrop-filter: blur(18px) saturate(140%) brightness(1.05);
+    transition: opacity 0.4s ease, -webkit-backdrop-filter 0.5s ease, backdrop-filter 0.5s ease;
+}
+
+.sys-frost-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    font: 500 0.875rem/1.2 var(--font-sans, system-ui);
+    color: #f5f5f7;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.24);
+    transform: scale(0.94);
+    transition: transform 0.5s var(--lg-spring);
+}
+
+.sys-frost[data-on] .sys-frost-label {
+    transform: none;
+}
+
+.sys-frost:hover .sys-frost-label {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1));
+}
+
+/* 右上角的開關（終端機永遠是深色，開關固定用深色玻璃） */
+.sys-frost-toggle {
+    position: absolute !important;
+    top: 10px;
+    right: 10px;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 9999px;
+    color: #f5f5f7;
+    cursor: pointer;
+    opacity: 0.7;
+    --lg-radius: 9999px;
+    --lg-fill-top: rgba(255, 255, 255, 0.08) !important;
+    --lg-fill: rgba(28, 28, 32, 0.45) !important;
+    --lg-hairline: rgba(255, 255, 255, 0.14) !important;
+    transition: opacity 0.2s ease, transform 0.5s var(--lg-spring);
+}
+
+.sys-frost-toggle:hover,
+.sys-frost-toggle[aria-pressed='true'] {
+    opacity: 1;
+}
+
+.sys-frost-toggle:active {
+    transform: scale(0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sys-spoiler-content,
+    .sys-spoiler::after,
+    .sys-frost-label {
+        transition: none;
+    }
+}
+
+/* 選單項目：iOS 用灰色反白，不用整條藍色 */
+.sys-menu a,
+.sys-menu button,
+.sys-menu [role='menuitem'] {
+    border-radius: 12px;
+}
+
+/* ---------- 交互 ---------- */
+
+/* 玻璃列：游標附近有一圈柔光，像光線在玻璃裡移動 */
+.sys-bar::after {
+    background: radial-gradient(220px circle at var(--lg-px, -999px) var(--lg-py, -999px), var(--sys-glow), transparent 70%);
+    transition: opacity 0.35s ease;
+}
+
+@media (hover: hover) {
+    .sys-bar:hover::after {
+        opacity: 1;
+    }
+}
+
+/* 頁面進場：淡入並以彈簧上浮 */
+@keyframes lg-rise {
+    from {
+        transform: translateY(10px);
+    }
+}
+
+.sys-page {
+    animation: lg-rise 0.5s var(--lg-spring) both;
+}
+
+/* 深色 / 淺色切換：從按下的位置以圓形展開（View Transitions；不支援的瀏覽器直接切換） */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+/* 切換按鈕的圖示：太陽 / 月亮轉進來 */
+@keyframes lg-swap {
+    from {
+        opacity: 0;
+        transform: rotate(-90deg) scale(0.5);
+    }
+}
+
+.sys-swap {
+    animation: lg-swap 0.55s var(--lg-spring);
+}
+
+/* 勾選時的彈跳 */
+@keyframes lg-pop {
+    0% {
+        transform: scale(0.8);
+    }
+}
+
+.sys-press {
+    transition-property: transform, background-color, color, opacity, box-shadow;
+    transition-duration: 0.5s, 0.2s, 0.2s, 0.2s, 0.2s;
+    transition-timing-function: var(--lg-spring), ease, ease, ease, ease;
+}
+
+.sys-press:not(:disabled):active {
+    transform: scale(0.97);
+    transition-duration: 0.15s, 0.1s, 0.1s, 0.1s, 0.1s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sys-page,
+    .sys-swap {
+        animation: none;
+    }
+
+    .lg-ind::before,
+    .sys-press,
+    .sys-bar a,
+    .sys-bar button {
+        transition: none;
+    }
+
+    .sys-press:not(:disabled):active,
+    .sys-bar a:active,
+    .sys-bar button:active {
+        transform: none;
+    }
+}

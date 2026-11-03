@@ -1,0 +1,12 @@
+/dist/
+node_modules/
+.env
+.env.*
+*.log
+*.tar.gz
+*.zip
+*.tmp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

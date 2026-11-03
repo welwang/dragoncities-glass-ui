@@ -1,0 +1,4 @@
+public/branding/brand.json
+public/branding/panel-logo.png
+resources/scripts/system-theme/panel-brand.ts
+resources/views/partials/panel-brand.php

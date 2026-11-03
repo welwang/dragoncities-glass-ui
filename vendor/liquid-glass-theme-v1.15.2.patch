@@ -1,0 +1,3936 @@
+diff --git a/package.json b/package.json
+index 732015e..c90c82e 100644
+--- a/package.json
++++ b/package.json
+@@ -147,7 +147,8 @@
+     ],
+     "babelMacros": {
+         "twin": {
+-            "preset": "styled-components"
++            "preset": "styled-components",
++            "config": "tailwind.twin.config.js"
+         },
+         "styledComponents": {
+             "pure": true,
+diff --git a/resources/scripts/assets/css/GlobalStylesheet.ts b/resources/scripts/assets/css/GlobalStylesheet.ts
+index f7c2fe7..d99dc30 100644
+--- a/resources/scripts/assets/css/GlobalStylesheet.ts
++++ b/resources/scripts/assets/css/GlobalStylesheet.ts
+@@ -1,5 +1,6 @@
+-import tw from 'twin.macro';
++import tw, { theme } from 'twin.macro';
+ import { createGlobalStyle } from 'styled-components/macro';
++import * as tokens from '@/system-theme/tokens';
+ // @ts-expect-error untyped font file
+ import font from '@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2';
+ 
+@@ -13,13 +14,96 @@ export default createGlobalStyle`
+         unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+     }
+ 
++    /* 系統主題色盤：深色是預設，淺色由 <html data-theme="light"> 切換（system-theme/theme-mode.ts） */
++    :root {
++        ${tokens.cssVars('dark')}
++        --sys-separator: rgba(84, 84, 88, 0.55);
++        --sys-fill: rgba(120, 120, 128, 0.24);
++    }
++
++    :root[data-theme='light'] {
++        ${tokens.cssVars('light')}
++        --sys-separator: rgba(60, 60, 67, 0.22);
++        --sys-fill: rgba(120, 120, 128, 0.12);
++    }
++
++    /* 淺色模式下浮在深色內容上的玻璃列，內部改用深色色階（文字變白） */
++    :root[data-theme='light'] .lg-over-dark {
++        ${tokens.cssVars('dark')}
++    }
++
++    /* 給 CSS module 與玻璃引擎用的語意變數 */
++    :root {
++        --sys-edge-h: 144;
++        --sys-bg: ${theme`colors.neutral.800`.toString()};
++        --sys-surface: ${theme`colors.neutral.700`.toString()};
++        --sys-surface-2: ${theme`colors.neutral.600`.toString()};
++        --sys-label: ${theme`colors.neutral.50`.toString()};
++        --sys-label-2: ${theme`colors.neutral.300`.toString()};
++        --sys-accent: ${theme`colors.blue.500`.toString()};
++        --sys-danger: ${theme`colors.red.500`.toString()};
++        --sys-success: ${theme`colors.green.500`.toString()};
++        --sys-warning: ${theme`colors.yellow.500`.toString()};
++    }
++
++    html {
++        background: var(--sys-bg);
++    }
++
+     body {
+         ${tw`font-sans bg-neutral-800 text-neutral-200`};
+-        letter-spacing: 0.015em;
++        letter-spacing: 0;
++        -webkit-font-smoothing: antialiased;
++        -moz-osx-font-smoothing: grayscale;
++        min-height: 100vh;
++        /* 桌布（tokens.wallpaper）固定在視窗，玻璃導覽列後面才有東西可以折射 */
++        background-image: var(--sys-wallpaper);
++        background-repeat: no-repeat;
++        background-attachment: fixed;
++    }
++
++    /* 捲動邊緣效果：內容捲到玻璃導覽列下方時柔和淡出（liquid-glass.js 會切換 .lg-scrolled） */
++    body::after {
++        content: '';
++        position: fixed;
++        top: 0;
++        left: 0;
++        right: 0;
++        height: calc(var(--sys-edge-h) * 1px);
++        z-index: 20;
++        pointer-events: none;
++        background: linear-gradient(
++            180deg,
++            rgb(var(--c-gray-800) / 0.96) 0%,
++            rgb(var(--c-gray-800) / 0.9) 45%,
++            rgb(var(--c-gray-800) / 0.55) 75%,
++            rgb(var(--c-gray-800) / 0) 100%
++        );
++        opacity: 0;
++        transition: opacity 0.3s ease;
++    }
++
++    html.lg-scrolled body::after {
++        opacity: 1;
++    }
++
++    ::selection {
++        background: rgba(10, 132, 255, 0.45);
++    }
++
++    a,
++    button,
++    [role='button'] {
++        -webkit-tap-highlight-color: transparent;
++    }
++
++    :focus-visible {
++        outline: 2px solid var(--sys-accent) !important;
++        outline-offset: 2px;
+     }
+ 
+     h1, h2, h3, h4, h5, h6 {
+-        ${tw`font-medium tracking-normal font-header`};
++        ${tw`font-semibold tracking-normal font-header text-neutral-50`};
+     }
+ 
+     p {
+@@ -44,31 +128,27 @@ export default createGlobalStyle`
+         -moz-appearance: textfield !important;
+     }
+ 
+-    /* Scroll Bar Style */
++    /* 捲軸：細、圓、半透明（iOS / macOS 風格） */
++    * {
++        scrollbar-width: thin;
++        scrollbar-color: rgb(var(--c-gray-400) / 0.45) transparent;
++    }
++
+     ::-webkit-scrollbar {
+         background: none;
+-        width: 16px;
+-        height: 16px;
++        width: 10px;
++        height: 10px;
+     }
+ 
+     ::-webkit-scrollbar-thumb {
+-        border: solid 0 rgb(0 0 0 / 0%);
+-        border-right-width: 4px;
+-        border-left-width: 4px;
+-        -webkit-border-radius: 9px 4px;
+-        -webkit-box-shadow: inset 0 0 0 1px hsl(211, 10%, 53%), inset 0 0 0 4px hsl(209deg 18% 30%);
+-    }
+-
+-    ::-webkit-scrollbar-track-piece {
+-        margin: 4px 0;
++        background-clip: padding-box;
++        border: 3px solid transparent;
++        border-radius: 9999px;
++        background-color: rgb(var(--c-gray-400) / 0.45);
+     }
+ 
+-    ::-webkit-scrollbar-thumb:horizontal {
+-        border-right-width: 0;
+-        border-left-width: 0;
+-        border-top-width: 4px;
+-        border-bottom-width: 4px;
+-        -webkit-border-radius: 4px 9px;
++    ::-webkit-scrollbar-thumb:hover {
++        background-color: rgb(var(--c-gray-400) / 0.7);
+     }
+ 
+     ::-webkit-scrollbar-corner {
+diff --git a/resources/scripts/components/MessageBox.tsx b/resources/scripts/components/MessageBox.tsx
+index 57a5cac..56bfb4c 100644
+--- a/resources/scripts/components/MessageBox.tsx
++++ b/resources/scripts/components/MessageBox.tsx
+@@ -1,6 +1,6 @@
+ import * as React from 'react';
+ import tw, { TwStyle } from 'twin.macro';
+-import styled from 'styled-components/macro';
++import styled, { css } from 'styled-components/macro';
+ 
+ export type FlashMessageType = 'success' | 'info' | 'warning' | 'error';
+ 
+@@ -10,16 +10,28 @@ interface Props {
+     type?: FlashMessageType;
+ }
+ 
+-const styling = (type?: FlashMessageType): TwStyle | string => {
++const styling = (type?: FlashMessageType): ReturnType<typeof css> | string => {
+     switch (type) {
+         case 'error':
+-            return tw`bg-red-600 border-red-800`;
++            return css`
++                background-color: rgb(var(--c-red-500) / 0.18);
++                border-color: rgb(var(--c-red-500) / 0.3);
++            `;
+         case 'info':
+-            return tw`bg-primary-600 border-primary-800`;
++            return css`
++                background-color: rgb(var(--c-blue-500) / 0.18);
++                border-color: rgb(var(--c-blue-500) / 0.3);
++            `;
+         case 'success':
+-            return tw`bg-green-600 border-green-800`;
++            return css`
++                background-color: rgb(var(--c-green-500) / 0.18);
++                border-color: rgb(var(--c-green-500) / 0.3);
++            `;
+         case 'warning':
+-            return tw`bg-yellow-600 border-yellow-800`;
++            return css`
++                background-color: rgb(var(--c-yellow-500) / 0.18);
++                border-color: rgb(var(--c-yellow-500) / 0.3);
++            `;
+         default:
+             return '';
+     }
+@@ -41,7 +53,7 @@ const getBackground = (type?: FlashMessageType): TwStyle | string => {
+ };
+ 
+ const Container = styled.div<{ $type?: FlashMessageType }>`
+-    ${tw`p-2 border items-center leading-normal rounded flex w-full text-sm text-white`};
++    ${tw`px-3 py-2.5 border items-center leading-normal rounded-xl flex w-full text-sm text-neutral-50`};
+     ${(props) => styling(props.$type)};
+ `;
+ Container.displayName = 'MessageBox.Container';
+@@ -52,7 +64,7 @@ const MessageBox = ({ title, children, type }: Props) => (
+             <span
+                 className={'title'}
+                 css={[
+-                    tw`flex rounded-full uppercase px-2 py-1 text-xs font-bold mr-3 leading-none`,
++                    tw`flex rounded-full px-2.5 py-1 text-xs font-semibold mr-3 leading-none`,
+                     getBackground(type),
+                 ]}
+             >
+diff --git a/resources/scripts/components/NavigationBar.tsx b/resources/scripts/components/NavigationBar.tsx
+index 6142f62..c52b9ed 100644
+--- a/resources/scripts/components/NavigationBar.tsx
++++ b/resources/scripts/components/NavigationBar.tsx
+@@ -2,32 +2,52 @@ import * as React from 'react';
+ import { useState } from 'react';
+ import { Link, NavLink } from 'react-router-dom';
+ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+-import { faCogs, faLayerGroup, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
++import { faCogs, faLayerGroup, faMoon, faSignOutAlt, faSun } from '@fortawesome/free-solid-svg-icons';
++import { useThemeMode } from '@/system-theme/theme-mode';
+ import { useStoreState } from 'easy-peasy';
+ import { ApplicationStore } from '@/state';
+ import SearchContainer from '@/components/dashboard/search/SearchContainer';
+-import tw, { theme } from 'twin.macro';
++import tw from 'twin.macro';
+ import styled from 'styled-components/macro';
+ import http from '@/api/http';
+ import SpinnerOverlay from '@/components/elements/SpinnerOverlay';
+ import Tooltip from '@/components/elements/tooltip/Tooltip';
+ import Avatar from '@/components/Avatar';
+ 
++// 導覽列是玻璃控制層（sys-bar）；連結是圓形圖示按鈕，選取狀態用膠囊而不是底線
+ const RightNavigation = styled.div`
+     & > a,
+     & > button,
+     & > .navigation-link {
+-        ${tw`flex items-center h-full no-underline text-neutral-300 px-6 cursor-pointer transition-all duration-150`};
++        ${tw`flex items-center justify-center flex-none h-11 w-11 rounded-full no-underline text-neutral-200 cursor-pointer`};
++        font-size: 1.0625rem;
++        transition: background-color 0.25s ease, color 0.25s ease, transform 0.5s var(--lg-spring);
++
++        /* 手機：圖示縮小一點，名稱才不會被擠掉 */
++        @media (max-width: 639px) {
++            width: 2.375rem;
++            height: 2.375rem;
++        }
+ 
+-        &:active,
+         &:hover {
+-            ${tw`text-neutral-100 bg-black`};
++            ${tw`text-neutral-50`};
++            background-color: var(--sys-hover);
+         }
+ 
+-        &:active,
+-        &:hover,
+         &.active {
+-            box-shadow: inset 0 -2px ${theme`colors.cyan.600`.toString()};
++            ${tw`text-neutral-50`};
++            background-color: var(--sys-select);
++        }
++
++        &:active {
++            transform: scale(0.92);
++        }
++    }
++
++    /* 手機：左邊的面板名稱本身就會回到伺服器列表，省掉重複的 Dashboard 圖示 */
++    @media (max-width: 639px) {
++        & > a.nav-dashboard {
++            display: none;
+         }
+     }
+ `;
+@@ -36,6 +56,8 @@ export default () => {
+     const name = useStoreState((state: ApplicationStore) => state.settings.data!.name);
+     const rootAdmin = useStoreState((state: ApplicationStore) => state.user.data!.rootAdmin);
+     const [isLoggingOut, setIsLoggingOut] = useState(false);
++    const [mode, setMode] = useThemeMode();
++    const nextMode = mode === 'dark' ? 'light' : 'dark';
+ 
+     const onTriggerLogout = () => {
+         setIsLoggingOut(true);
+@@ -46,23 +68,34 @@ export default () => {
+     };
+ 
+     return (
+-        <div className={'w-full bg-neutral-900 shadow-md overflow-x-auto'}>
++        <div className={'sticky top-0 z-40 w-full px-3 pt-3'}>
+             <SpinnerOverlay visible={isLoggingOut} />
+-            <div className={'mx-auto w-full flex items-center h-[3.5rem] max-w-[1200px]'}>
+-                <div id={'logo'} className={'flex-1'}>
++            <div
++                className={'lg sys-bar mx-auto w-full flex items-center h-14 max-w-[1200px] pl-4 sm:pl-5 pr-1.5'}
++                data-glass
++            >
++                <div id={'logo'} className={'flex-1 min-w-0'}>
+                     <Link
+                         to={'/'}
+                         className={
+-                            'text-2xl font-header font-medium px-4 no-underline text-neutral-200 hover:text-neutral-100 transition-colors duration-150'
++                            'block truncate text-xl font-header font-semibold no-underline text-neutral-50 hover:text-neutral-50 transition-colors duration-150'
+                         }
+                     >
+                         {name}
+                     </Link>
+                 </div>
+-                <RightNavigation className={'flex h-full items-center justify-center'}>
++                <RightNavigation className={'flex h-full items-center justify-center gap-0.5'}>
+                     <SearchContainer />
++                    <Tooltip placement={'bottom'} content={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}>
++                        <button
++                            aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
++                            onClick={(e) => setMode(nextMode, { x: e.clientX, y: e.clientY })}
++                        >
++                            <FontAwesomeIcon key={mode} icon={mode === 'dark' ? faSun : faMoon} className={'sys-swap'} />
++                        </button>
++                    </Tooltip>
+                     <Tooltip placement={'bottom'} content={'Dashboard'}>
+-                        <NavLink to={'/'} exact>
++                        <NavLink to={'/'} exact className={'nav-dashboard'}>
+                             <FontAwesomeIcon icon={faLayerGroup} />
+                         </NavLink>
+                     </Tooltip>
+diff --git a/resources/scripts/components/auth/ForgotPasswordContainer.tsx b/resources/scripts/components/auth/ForgotPasswordContainer.tsx
+index 76ddf19..3f5d3c1 100644
+--- a/resources/scripts/components/auth/ForgotPasswordContainer.tsx
++++ b/resources/scripts/components/auth/ForgotPasswordContainer.tsx
+@@ -105,7 +105,7 @@ export default () => {
+                     <div css={tw`mt-6 text-center`}>
+                         <Link
+                             to={'/auth/login'}
+-                            css={tw`text-xs text-neutral-500 tracking-wide uppercase no-underline hover:text-neutral-700`}
++                            css={tw`text-sm font-medium text-blue-400 no-underline hover:text-blue-300`}
+                         >
+                             Return to Login
+                         </Link>
+diff --git a/resources/scripts/components/auth/LoginCheckpointContainer.tsx b/resources/scripts/components/auth/LoginCheckpointContainer.tsx
+index 66a6fb8..22b6fa9 100644
+--- a/resources/scripts/components/auth/LoginCheckpointContainer.tsx
++++ b/resources/scripts/components/auth/LoginCheckpointContainer.tsx
+@@ -55,7 +55,7 @@ const LoginCheckpointContainer = () => {
+                         setFieldValue('recoveryCode', '');
+                         setIsMissingDevice((s) => !s);
+                     }}
+-                    css={tw`cursor-pointer text-xs text-neutral-500 tracking-wide uppercase no-underline hover:text-neutral-700`}
++                    css={tw`cursor-pointer text-sm font-medium text-blue-400 no-underline hover:text-blue-300`}
+                 >
+                     {!isMissingDevice ? "I've Lost My Device" : 'I Have My Device'}
+                 </span>
+@@ -63,7 +63,7 @@ const LoginCheckpointContainer = () => {
+             <div css={tw`mt-6 text-center`}>
+                 <Link
+                     to={'/auth/login'}
+-                    css={tw`text-xs text-neutral-500 tracking-wide uppercase no-underline hover:text-neutral-700`}
++                    css={tw`text-sm font-medium text-blue-400 no-underline hover:text-blue-300`}
+                 >
+                     Return to Login
+                 </Link>
+diff --git a/resources/scripts/components/auth/LoginContainer.tsx b/resources/scripts/components/auth/LoginContainer.tsx
+index 453a27e..d8a99b9 100644
+--- a/resources/scripts/components/auth/LoginContainer.tsx
++++ b/resources/scripts/components/auth/LoginContainer.tsx
+@@ -102,7 +102,7 @@ const LoginContainer = ({ history }: RouteComponentProps) => {
+                     <div css={tw`mt-6 text-center`}>
+                         <Link
+                             to={'/auth/password'}
+-                            css={tw`text-xs text-neutral-500 tracking-wide no-underline uppercase hover:text-neutral-600`}
++                            css={tw`text-sm font-medium text-blue-400 no-underline hover:text-blue-300`}
+                         >
+                             Forgot password?
+                         </Link>
+diff --git a/resources/scripts/components/auth/LoginFormContainer.tsx b/resources/scripts/components/auth/LoginFormContainer.tsx
+index 6274981..1d058c6 100644
+--- a/resources/scripts/components/auth/LoginFormContainer.tsx
++++ b/resources/scripts/components/auth/LoginFormContainer.tsx
+@@ -30,23 +30,23 @@ const Container = styled.div`
+ 
+ export default forwardRef<HTMLFormElement, Props>(({ title, ...props }, ref) => (
+     <Container>
+-        {title && <h2 css={tw`text-3xl text-center text-neutral-100 font-medium py-4`}>{title}</h2>}
++        {title && <h2 css={tw`text-3xl text-center text-neutral-50 font-semibold py-4`}>{title}</h2>}
+         <FlashMessageRender css={tw`mb-2 px-1`} />
+         <Form {...props} ref={ref}>
+-            <div css={tw`md:flex w-full bg-white shadow-lg rounded-lg p-6 md:pl-0 mx-1`}>
++            <div css={tw`md:flex w-full bg-neutral-700 rounded-3xl p-6 md:pl-0 mx-1`}>
+                 <div css={tw`flex-none select-none mb-6 md:mb-0 self-center`}>
+                     <img src={'/assets/svgs/pterodactyl.svg'} css={tw`block w-48 md:w-64 mx-auto`} />
+                 </div>
+                 <div css={tw`flex-1`}>{props.children}</div>
+             </div>
+         </Form>
+-        <p css={tw`text-center text-neutral-500 text-xs mt-4`}>
++        <p css={tw`text-center text-neutral-400 text-xs mt-4`}>
+             &copy; 2015 - {new Date().getFullYear()}&nbsp;
+             <a
+                 rel={'noopener nofollow noreferrer'}
+                 href={'https://pterodactyl.io'}
+                 target={'_blank'}
+-                css={tw`no-underline text-neutral-500 hover:text-neutral-300`}
++                css={tw`no-underline text-neutral-400 hover:text-neutral-200`}
+             >
+                 Pterodactyl Software
+             </a>
+diff --git a/resources/scripts/components/auth/ResetPasswordContainer.tsx b/resources/scripts/components/auth/ResetPasswordContainer.tsx
+index 86f95ab..1f1059b 100644
+--- a/resources/scripts/components/auth/ResetPasswordContainer.tsx
++++ b/resources/scripts/components/auth/ResetPasswordContainer.tsx
+@@ -86,7 +86,7 @@ export default ({ match, location }: RouteComponentProps<{ token: string }>) =>
+                     <div css={tw`mt-6 text-center`}>
+                         <Link
+                             to={'/auth/login'}
+-                            css={tw`text-xs text-neutral-500 tracking-wide no-underline uppercase hover:text-neutral-600`}
++                            css={tw`text-sm font-medium text-blue-400 no-underline hover:text-blue-300`}
+                         >
+                             Return to Login
+                         </Link>
+diff --git a/resources/scripts/components/dashboard/ServerRow.tsx b/resources/scripts/components/dashboard/ServerRow.tsx
+index aa2b5a7..9e06194 100644
+--- a/resources/scripts/components/dashboard/ServerRow.tsx
++++ b/resources/scripts/components/dashboard/ServerRow.tsx
+@@ -10,6 +10,7 @@ import GreyRowBox from '@/components/elements/GreyRowBox';
+ import Spinner from '@/components/elements/Spinner';
+ import styled from 'styled-components/macro';
+ import isEqual from 'react-fast-compare';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ // Determines if the current value is in an alarm threshold so we can show it in red rather
+ // than the more faded default style.
+@@ -95,7 +96,7 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                     <FontAwesomeIcon icon={faServer} />
+                 </div>
+                 <div>
+-                    <p css={tw`text-lg break-words`}>{server.name}</p>
++                    <p css={tw`text-lg font-semibold text-neutral-50 break-words`}>{server.name}</p>
+                     {!!server.description && (
+                         <p css={tw`text-sm text-neutral-300 break-words line-clamp-2`}>{server.description}</p>
+                     )}
+@@ -108,9 +109,9 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                         {server.allocations
+                             .filter((alloc) => alloc.isDefault)
+                             .map((allocation) => (
+-                                <React.Fragment key={allocation.ip + allocation.port.toString()}>
++                                <Spoiler key={allocation.ip + allocation.port.toString()}>
+                                     {allocation.alias || ip(allocation.ip)}:{allocation.port}
+-                                </React.Fragment>
++                                </Spoiler>
+                             ))}
+                     </p>
+                 </div>
+@@ -119,19 +120,19 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                 {!stats || isSuspended || server.isNodeUnderMaintenance ? (
+                     isSuspended ? (
+                         <div css={tw`flex-1 text-center`}>
+-                            <span css={tw`bg-red-500 rounded px-2 py-1 text-red-100 text-xs`}>
++                            <span css={tw`bg-red-500 rounded-full px-2.5 py-1 text-white text-xs font-semibold`}>
+                                 {server.status === 'suspended' ? 'Suspended' : 'Connection Error'}
+                             </span>
+                         </div>
+                     ) : server.isNodeUnderMaintenance ? (
+                         <div css={tw`flex-1 text-center`}>
+-                            <span css={tw`bg-yellow-500 rounded px-2 py-1 text-yellow-100 text-xs`}>
++                            <span css={tw`bg-yellow-500 rounded-full px-2.5 py-1 text-white text-xs font-semibold`}>
+                                 Under Maintenance
+                             </span>
+                         </div>
+                     ) : server.isTransferring || server.status ? (
+                         <div css={tw`flex-1 text-center`}>
+-                            <span css={tw`bg-neutral-500 rounded px-2 py-1 text-neutral-100 text-xs`}>
++                            <span css={tw`bg-neutral-600 rounded-full px-2.5 py-1 text-neutral-100 text-xs font-semibold`}>
+                                 {server.isTransferring
+                                     ? 'Transferring'
+                                     : server.status === 'installing'
+@@ -153,7 +154,7 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                                     {stats.cpuUsagePercent.toFixed(2)} %
+                                 </IconDescription>
+                             </div>
+-                            <p css={tw`text-xs text-neutral-600 text-center mt-1`}>of {cpuLimit}</p>
++                            <p css={tw`text-xs text-neutral-400 text-center mt-1`}>of {cpuLimit}</p>
+                         </div>
+                         <div css={tw`flex-1 ml-4 sm:block hidden`}>
+                             <div css={tw`flex justify-center`}>
+@@ -162,7 +163,7 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                                     {bytesToString(stats.memoryUsageInBytes)}
+                                 </IconDescription>
+                             </div>
+-                            <p css={tw`text-xs text-neutral-600 text-center mt-1`}>of {memoryLimit}</p>
++                            <p css={tw`text-xs text-neutral-400 text-center mt-1`}>of {memoryLimit}</p>
+                         </div>
+                         <div css={tw`flex-1 ml-4 sm:block hidden`}>
+                             <div css={tw`flex justify-center`}>
+@@ -171,7 +172,7 @@ export default ({ server, className }: { server: Server; className?: string }) =
+                                     {bytesToString(stats.diskUsageInBytes)}
+                                 </IconDescription>
+                             </div>
+-                            <p css={tw`text-xs text-neutral-600 text-center mt-1`}>of {diskLimit}</p>
++                            <p css={tw`text-xs text-neutral-400 text-center mt-1`}>of {diskLimit}</p>
+                         </div>
+                     </React.Fragment>
+                 )}
+diff --git a/resources/scripts/components/elements/Button.tsx b/resources/scripts/components/elements/Button.tsx
+index e02f00f..eccc792 100644
+--- a/resources/scripts/components/elements/Button.tsx
++++ b/resources/scripts/components/elements/Button.tsx
+@@ -11,32 +11,39 @@ interface Props {
+ }
+ 
+ const ButtonStyle = styled.button<Omit<Props, 'isLoading'>>`
+-    ${tw`relative inline-block rounded p-2 uppercase tracking-wide text-sm transition-all duration-150 border`};
++    ${tw`relative inline-block rounded-full p-2 text-sm font-semibold border`};
++    transition-property: transform, background-color, border-color, color, opacity;
++    transition-duration: 0.5s, 0.2s, 0.2s, 0.2s, 0.2s;
++    transition-timing-function: var(--lg-spring), ease, ease, ease, ease;
++
++    &:not(:disabled):active {
++        transform: scale(0.96);
++    }
+ 
+     ${(props) =>
+         ((!props.isSecondary && !props.color) || props.color === 'primary') &&
+         css<Props>`
+-            ${(props) => !props.isSecondary && tw`bg-primary-500 border-primary-600 border text-primary-50`};
++            ${(props) => !props.isSecondary && tw`bg-primary-500 border-primary-500 border text-white`};
+ 
+             &:hover:not(:disabled) {
+-                ${tw`bg-primary-600 border-primary-700`};
++                ${tw`bg-primary-400 border-primary-400`};
+             }
+         `};
+ 
+     ${(props) =>
+         props.color === 'grey' &&
+         css`
+-            ${tw`border-neutral-600 bg-neutral-500 text-neutral-50`};
++            ${tw`border-neutral-600 bg-neutral-600 text-neutral-50`};
+ 
+             &:hover:not(:disabled) {
+-                ${tw`bg-neutral-600 border-neutral-700`};
++                ${tw`bg-neutral-500 border-neutral-500`};
+             }
+         `};
+ 
+     ${(props) =>
+         props.color === 'green' &&
+         css<Props>`
+-            ${tw`border-green-600 bg-green-500 text-green-50`};
++            ${tw`border-green-500 bg-green-500 text-white`};
+ 
+             &:hover:not(:disabled) {
+                 ${tw`bg-green-600 border-green-700`};
+@@ -54,7 +61,7 @@ const ButtonStyle = styled.button<Omit<Props, 'isLoading'>>`
+     ${(props) =>
+         props.color === 'red' &&
+         css<Props>`
+-            ${tw`border-red-600 bg-red-500 text-red-50`};
++            ${tw`border-red-500 bg-red-500 text-white`};
+ 
+             &:hover:not(:disabled) {
+                 ${tw`bg-red-600 border-red-700`};
+@@ -70,14 +77,14 @@ const ButtonStyle = styled.button<Omit<Props, 'isLoading'>>`
+         `};
+ 
+     ${(props) => props.size === 'xsmall' && tw`px-2 py-1 text-xs`};
+-    ${(props) => (!props.size || props.size === 'small') && tw`px-4 py-2`};
++    ${(props) => (!props.size || props.size === 'small') && tw`px-5 py-2`};
+     ${(props) => props.size === 'large' && tw`p-4 text-sm`};
+     ${(props) => props.size === 'xlarge' && tw`p-4 w-full`};
+ 
+     ${(props) =>
+         props.isSecondary &&
+         css<Props>`
+-            ${tw`border-neutral-600 bg-transparent text-neutral-200`};
++            ${tw`border-neutral-500 bg-transparent text-neutral-100`};
+ 
+             &:hover:not(:disabled) {
+                 ${tw`border-neutral-500 text-neutral-100`};
+diff --git a/resources/scripts/components/elements/ContentBox.tsx b/resources/scripts/components/elements/ContentBox.tsx
+index b829088..7c90922 100644
+--- a/resources/scripts/components/elements/ContentBox.tsx
++++ b/resources/scripts/components/elements/ContentBox.tsx
+@@ -14,11 +14,11 @@ type Props = Readonly<
+ 
+ const ContentBox = ({ title, borderColor, showFlashes, showLoadingOverlay, children, ...props }: Props) => (
+     <div {...props}>
+-        {title && <h2 css={tw`text-neutral-300 mb-4 px-4 text-2xl`}>{title}</h2>}
++        {title && <h2 css={tw`text-neutral-50 mb-3 px-1 text-xl font-semibold`}>{title}</h2>}
+         {showFlashes && (
+             <FlashMessageRender byKey={typeof showFlashes === 'string' ? showFlashes : undefined} css={tw`mb-4`} />
+         )}
+-        <div css={[tw`bg-neutral-700 p-4 rounded shadow-lg relative`, !!borderColor && tw`border-t-4`]}>
++        <div css={[tw`bg-neutral-700 p-5 rounded-xl relative`, !!borderColor && tw`border-t-4`]}>
+             <SpinnerOverlay visible={showLoadingOverlay || false} />
+             {children}
+         </div>
+diff --git a/resources/scripts/components/elements/CopyOnClick.tsx b/resources/scripts/components/elements/CopyOnClick.tsx
+index b01b1b1..3dde8c1 100644
+--- a/resources/scripts/components/elements/CopyOnClick.tsx
++++ b/resources/scripts/components/elements/CopyOnClick.tsx
+@@ -3,6 +3,7 @@ import Fade from '@/components/elements/Fade';
+ import Portal from '@/components/elements/Portal';
+ import copy from 'copy-to-clipboard';
+ import classNames from 'classnames';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ interface CopyOnClickProps {
+     text: string | number | null | undefined;
+@@ -49,11 +50,16 @@ const CopyOnClick = ({ text, showInNotification = true, children }: CopyOnClickP
+                 <Portal>
+                     <Fade in appear timeout={250} key={copied ? 'visible' : 'invisible'}>
+                         <div className={'fixed z-50 bottom-0 right-0 m-4'}>
+-                            <div className={'rounded-md py-3 px-4 text-gray-200 bg-neutral-600/95 shadow'}>
++                            <div className={'lg sys-float py-3 px-5 font-medium text-gray-50'} data-glass>
+                                 <p>
+-                                    {showInNotification
+-                                        ? `Copied "${String(text)}" to clipboard.`
+-                                        : 'Copied text to clipboard.'}
++                                    {showInNotification ? (
++                                        <>
++                                            Copied <Spoiler autoHide={0}>&ldquo;{String(text)}&rdquo;</Spoiler> to
++                                            clipboard.
++                                        </>
++                                    ) : (
++                                        'Copied text to clipboard.'
++                                    )}
+                                 </p>
+                             </div>
+                         </div>
+diff --git a/resources/scripts/components/elements/DropdownMenu.tsx b/resources/scripts/components/elements/DropdownMenu.tsx
+index 0c5361a..3318ce2 100644
+--- a/resources/scripts/components/elements/DropdownMenu.tsx
++++ b/resources/scripts/components/elements/DropdownMenu.tsx
+@@ -9,11 +9,12 @@ interface Props {
+ }
+ 
+ export const DropdownButtonRow = styled.button<{ danger?: boolean }>`
+-    ${tw`p-2 flex items-center rounded w-full text-neutral-500`};
++    ${tw`px-3 py-2.5 flex items-center rounded-lg w-full`};
++    ${(props) => (props.danger ? tw`text-red-400` : tw`text-neutral-50`)};
+     transition: 150ms all ease;
+ 
+     &:hover {
+-        ${(props) => (props.danger ? tw`text-red-700 bg-red-100` : tw`text-neutral-700 bg-neutral-100`)};
++        background-color: ${(props) => (props.danger ? 'rgb(var(--c-red-500) / 0.15)' : 'var(--sys-hover)')};
+     }
+ `;
+ 
+@@ -93,8 +94,9 @@ class DropdownMenu extends React.PureComponent<Props, State> {
+                             e.stopPropagation();
+                             this.setState({ visible: false });
+                         }}
+-                        style={{ width: '12rem' }}
+-                        css={tw`absolute bg-white p-2 rounded border border-neutral-700 shadow-lg text-neutral-500 z-50`}
++                        style={{ width: '13rem', position: 'absolute' }}
++                        className={'lg sys-menu'}
++                        data-glass
+                     >
+                         {this.props.children}
+                     </div>
+diff --git a/resources/scripts/components/elements/GreyRowBox.tsx b/resources/scripts/components/elements/GreyRowBox.tsx
+index e5a7f96..2548b4d 100644
+--- a/resources/scripts/components/elements/GreyRowBox.tsx
++++ b/resources/scripts/components/elements/GreyRowBox.tsx
+@@ -2,11 +2,16 @@ import styled from 'styled-components/macro';
+ import tw from 'twin.macro';
+ 
+ export default styled.div<{ $hoverable?: boolean }>`
+-    ${tw`flex rounded no-underline text-neutral-200 items-center bg-neutral-700 p-4 border border-transparent transition-colors duration-150 overflow-hidden`};
++    ${tw`flex rounded-xl no-underline text-neutral-200 items-center bg-neutral-700 p-4 border border-transparent overflow-hidden`};
++    transition: background-color 0.2s ease, transform 0.5s var(--lg-spring);
+ 
+-    ${(props) => props.$hoverable !== false && tw`hover:border-neutral-500`};
++    ${(props) => props.$hoverable !== false && tw`hover:bg-neutral-600`};
++
++    &:active {
++        transform: ${(props) => (props.$hoverable !== false ? 'scale(0.985)' : 'none')};
++    }
+ 
+     & .icon {
+-        ${tw`rounded-full w-16 flex items-center justify-center bg-neutral-500 p-3`};
++        ${tw`rounded-xl w-16 flex items-center justify-center bg-neutral-600 p-3`};
+     }
+ `;
+diff --git a/resources/scripts/components/elements/Input.tsx b/resources/scripts/components/elements/Input.tsx
+index 677a501..974fbc1 100644
+--- a/resources/scripts/components/elements/Input.tsx
++++ b/resources/scripts/components/elements/Input.tsx
+@@ -6,25 +6,18 @@ export interface Props {
+     hasError?: boolean;
+ }
+ 
+-const light = css<Props>`
+-    ${tw`bg-white border-neutral-200 text-neutral-800`};
+-    &:focus {
+-        ${tw`border-primary-400`}
+-    }
+-
+-    &:disabled {
+-        ${tw`bg-neutral-100 border-neutral-200`};
+-    }
+-`;
++// 系統主題只有一套外觀：isLight 保留相容，但不再切換成白色輸入框
++const light = css<Props>``;
+ 
+ const checkboxStyle = css<Props>`
+-    ${tw`bg-neutral-500 cursor-pointer appearance-none inline-block align-middle select-none flex-shrink-0 w-4 h-4 text-primary-400 border border-neutral-300 rounded-sm`};
++    ${tw`bg-neutral-600 cursor-pointer appearance-none inline-block align-middle select-none flex-shrink-0 w-5 h-5 text-primary-500 border border-neutral-500 rounded-md`};
+     color-adjust: exact;
+     background-origin: border-box;
+     transition: all 75ms linear, box-shadow 25ms linear;
+ 
+     &:checked {
+         ${tw`border-transparent bg-no-repeat bg-center`};
++        animation: lg-pop 0.35s var(--lg-spring);
+         background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M5.707 7.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L7 8.586 5.707 7.293z'/%3e%3c/svg%3e");
+         background-color: currentColor;
+         background-size: 100% 100%;
+@@ -40,8 +33,8 @@ const inputStyle = css<Props>`
+     // Reset to normal styling.
+     resize: none;
+     ${tw`appearance-none outline-none w-full min-w-0`};
+-    ${tw`p-3 border-2 rounded text-sm transition-all duration-150`};
+-    ${tw`bg-neutral-600 border-neutral-500 hover:border-neutral-400 text-neutral-200 shadow-none focus:ring-0`};
++    ${tw`px-4 py-3 border-2 rounded-lg text-sm transition-all duration-150`};
++    ${tw`bg-neutral-600 border-transparent hover:border-neutral-500 text-neutral-50 shadow-none focus:ring-0`};
+ 
+     & + .input-help {
+         ${tw`mt-1 text-xs`};
+@@ -54,7 +47,8 @@ const inputStyle = css<Props>`
+     }
+ 
+     &:not(:disabled):not(:read-only):focus {
+-        ${tw`shadow-md border-primary-300 ring-2 ring-primary-400 ring-opacity-50`};
++        ${tw`border-primary-500`};
++        box-shadow: 0 0 0 4px rgb(var(--c-blue-500) / 0.25);
+         ${(props) => props.hasError && tw`border-red-300 ring-red-200`};
+     }
+ 
+@@ -63,7 +57,7 @@ const inputStyle = css<Props>`
+     }
+ 
+     ${(props) => props.isLight && light};
+-    ${(props) => props.hasError && tw`text-red-100 border-red-400 hover:border-red-300`};
++    ${(props) => props.hasError && tw`text-red-100 border-red-500 hover:border-red-400`};
+ `;
+ 
+ const Input = styled.input<Props>`
+diff --git a/resources/scripts/components/elements/Label.tsx b/resources/scripts/components/elements/Label.tsx
+index 704e832..c5daa8c 100644
+--- a/resources/scripts/components/elements/Label.tsx
++++ b/resources/scripts/components/elements/Label.tsx
+@@ -2,8 +2,7 @@ import styled from 'styled-components/macro';
+ import tw from 'twin.macro';
+ 
+ const Label = styled.label<{ isLight?: boolean }>`
+-    ${tw`block text-xs uppercase text-neutral-200 mb-1 sm:mb-2`};
+-    ${(props) => props.isLight && tw`text-neutral-700`};
++    ${tw`block text-sm font-medium text-neutral-300 mb-1.5 sm:mb-2`};
+ `;
+ 
+ export default Label;
+diff --git a/resources/scripts/components/elements/Modal.tsx b/resources/scripts/components/elements/Modal.tsx
+index d4f6dfe..73e6ab9 100644
+--- a/resources/scripts/components/elements/Modal.tsx
++++ b/resources/scripts/components/elements/Modal.tsx
+@@ -22,7 +22,7 @@ export interface ModalProps extends RequiredModalProps {
+ 
+ export const ModalMask = styled.div`
+     ${tw`fixed z-50 overflow-auto flex w-full inset-0`};
+-    background: rgba(0, 0, 0, 0.7);
++    background: rgba(0, 0, 0, 0.5);
+ `;
+ 
+ const ModalContainer = styled.div<{ alignTop?: boolean }>`
+@@ -122,15 +122,17 @@ const Modal: React.FC<ModalProps> = ({
+                     {showSpinnerOverlay && (
+                         <Fade timeout={150} appear in>
+                             <div
+-                                css={tw`absolute w-full h-full rounded flex items-center justify-center`}
+-                                style={{ background: 'hsla(211, 10%, 53%, 0.35)', zIndex: 9999 }}
++                                css={tw`absolute w-full h-full rounded-3xl flex items-center justify-center`}
++                                style={{ background: 'rgba(0, 0, 0, 0.35)', zIndex: 9999 }}
+                             >
+                                 <Spinner />
+                             </div>
+                         </Fade>
+                     )}
+                     <div
+-                        css={tw`bg-neutral-800 p-3 sm:p-4 md:p-6 rounded shadow-md overflow-y-scroll transition-all duration-150`}
++                        className={'lg sys-sheet'}
++                        data-glass
++                        css={tw`p-4 sm:p-5 md:p-6 overflow-y-auto transition-all duration-150`}
+                     >
+                         {children}
+                     </div>
+diff --git a/resources/scripts/components/elements/PageContentBlock.tsx b/resources/scripts/components/elements/PageContentBlock.tsx
+index a4df195..4ec8a4d 100644
+--- a/resources/scripts/components/elements/PageContentBlock.tsx
++++ b/resources/scripts/components/elements/PageContentBlock.tsx
+@@ -20,7 +20,7 @@ const PageContentBlock: React.FC<PageContentBlockProps> = ({ title, showFlashKey
+     return (
+         <CSSTransition timeout={150} classNames={'fade'} appear in>
+             <>
+-                <ContentContainer css={tw`my-4 sm:my-10`} className={className}>
++                <ContentContainer css={tw`my-4 sm:my-10`} className={className ? `sys-page ${className}` : 'sys-page'}>
+                     {showFlashKey && <FlashMessageRender byKey={showFlashKey} css={tw`mb-4`} />}
+                     {children}
+                 </ContentContainer>
+diff --git a/resources/scripts/components/elements/ScreenBlock.tsx b/resources/scripts/components/elements/ScreenBlock.tsx
+index 0b57e92..2759884 100644
+--- a/resources/scripts/components/elements/ScreenBlock.tsx
++++ b/resources/scripts/components/elements/ScreenBlock.tsx
+@@ -44,7 +44,7 @@ const ScreenBlock = ({ title, image, message, onBack, onRetry }: ScreenBlockProp
+     <PageContentBlock>
+         <div css={tw`flex justify-center`}>
+             <div
+-                css={tw`w-full sm:w-3/4 md:w-1/2 p-12 md:p-20 bg-neutral-100 rounded-lg shadow-lg text-center relative`}
++                css={tw`w-full sm:w-3/4 md:w-1/2 p-12 md:p-20 bg-neutral-700 rounded-3xl text-center relative`}
+             >
+                 {(typeof onBack === 'function' || typeof onRetry === 'function') && (
+                     <div css={tw`absolute left-0 top-0 ml-4 mt-4`}>
+@@ -57,8 +57,8 @@ const ScreenBlock = ({ title, image, message, onBack, onRetry }: ScreenBlockProp
+                     </div>
+                 )}
+                 <img src={image} css={tw`w-2/3 h-auto select-none mx-auto`} />
+-                <h2 css={tw`mt-10 text-neutral-900 font-bold text-4xl`}>{title}</h2>
+-                <p css={tw`text-sm text-neutral-700 mt-2`}>{message}</p>
++                <h2 css={tw`mt-10 text-neutral-50 font-bold text-4xl`}>{title}</h2>
++                <p css={tw`text-sm text-neutral-300 mt-2`}>{message}</p>
+             </div>
+         </div>
+     </PageContentBlock>
+diff --git a/resources/scripts/components/elements/Select.tsx b/resources/scripts/components/elements/Select.tsx
+index fc50f25..aacbbb3 100644
+--- a/resources/scripts/components/elements/Select.tsx
++++ b/resources/scripts/components/elements/Select.tsx
+@@ -6,7 +6,7 @@ interface Props {
+ }
+ 
+ const Select = styled.select<Props>`
+-    ${tw`shadow-none block p-3 pr-8 rounded border w-full text-sm transition-colors duration-150 ease-linear`};
++    ${tw`shadow-none block px-4 py-3 pr-10 rounded-lg border-2 w-full text-sm transition-colors duration-150 ease-linear`};
+ 
+     &,
+     &:hover:not(:disabled),
+@@ -28,12 +28,12 @@ const Select = styled.select<Props>`
+     ${(props) =>
+         !props.hideDropdownArrow &&
+         css`
+-            ${tw`bg-neutral-600 border-neutral-500 text-neutral-200`};
+-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='%23C3D1DF' d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3e%3c/svg%3e ");
++            ${tw`bg-neutral-600 border-transparent text-neutral-50`};
++            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='%23AEAEB2' d='M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z'/%3e%3c/svg%3e ");
+ 
+             &:hover:not(:disabled),
+             &:focus {
+-                ${tw`border-neutral-400`};
++                ${tw`border-neutral-500`};
+             }
+         `};
+ `;
+diff --git a/resources/scripts/components/elements/Spinner.tsx b/resources/scripts/components/elements/Spinner.tsx
+index 48de135..30b95b8 100644
+--- a/resources/scripts/components/elements/Spinner.tsx
++++ b/resources/scripts/components/elements/Spinner.tsx
+@@ -37,8 +37,8 @@ const SpinnerComponent = styled.div<Props>`
+               `
+             : null};
+ 
+-    border-color: ${(props) => (!props.isBlue ? 'rgba(255, 255, 255, 0.2)' : 'hsla(212, 92%, 43%, 0.2)')};
+-    border-top-color: ${(props) => (!props.isBlue ? 'rgb(255, 255, 255)' : 'hsl(212, 92%, 43%)')};
++    border-color: ${(props) => (!props.isBlue ? 'rgb(var(--c-gray-50) / 0.2)' : 'rgb(var(--c-blue-500) / 0.2)')};
++    border-top-color: ${(props) => (!props.isBlue ? 'rgb(var(--c-gray-50))' : 'rgb(var(--c-blue-500))')};
+ `;
+ 
+ const Spinner: Spinner = ({ centered, ...props }) =>
+diff --git a/resources/scripts/components/elements/SubNavigation.tsx b/resources/scripts/components/elements/SubNavigation.tsx
+index 9a25b80..a1a4792 100644
+--- a/resources/scripts/components/elements/SubNavigation.tsx
++++ b/resources/scripts/components/elements/SubNavigation.tsx
+@@ -1,29 +1,49 @@
++import type { HTMLAttributes } from 'react';
+ import styled from 'styled-components/macro';
+-import tw, { theme } from 'twin.macro';
++import tw from 'twin.macro';
+ 
+-const SubNavigation = styled.div`
+-    ${tw`w-full bg-neutral-700 shadow overflow-x-auto`};
++/**
++ * 分頁列：玻璃控制層（sys-bar），浮在內容上方並在捲動時停在導覽列下面。
++ * 選取的分頁是一顆膠囊；外觀規則見 system-theme/roles.css。
++ */
++// 用 HTMLAttributes 標註型別：children 仍是一般的 ReactNode（字串索引寫法會讓 tsc 報 TS2769）
++const SubNavigation = styled.div.attrs({ className: 'lg sys-bar', 'data-glass': '' } as HTMLAttributes<HTMLDivElement>)`
++    ${tw`sticky z-30 mx-auto`};
++    top: 5rem;
++    width: calc(100% - 1.5rem);
++    max-width: 1200px;
++    margin-top: 0.75rem;
+ 
++    /* 玻璃外框不捲動也不裁切；裡面這層負責左右滑動。
++       捲到邊緣時用漸隱遮罩（liquid-glass.js 設定 data-lg-scroll），文字不會被圓角硬切掉 */
+     & > div {
+-        ${tw`flex items-center text-sm mx-auto px-2`};
+-        max-width: 1200px;
++        ${tw`flex items-center text-sm p-1.5 gap-1`};
++        overflow-x: auto;
++        overflow-y: hidden;
++        overscroll-behavior-x: contain;
++        scrollbar-width: none;
++
++        &::-webkit-scrollbar {
++            display: none;
++        }
+ 
+         & > a,
+         & > div {
+-            ${tw`inline-block py-3 px-4 text-neutral-300 no-underline whitespace-nowrap transition-all duration-150`};
++            ${tw`inline-flex flex-none items-center h-10 px-4 rounded-full font-medium text-neutral-300 no-underline whitespace-nowrap`};
++            transition: background-color 0.25s ease, color 0.25s ease, transform 0.5s var(--lg-spring);
+ 
+-            &:not(:first-of-type) {
+-                ${tw`ml-2`};
++            &:hover {
++                ${tw`text-neutral-50`};
++                background-color: var(--sys-hover);
+             }
+ 
+-            &:hover {
+-                ${tw`text-neutral-100`};
++            &:active {
++                transform: scale(0.95);
+             }
+ 
+-            &:active,
+             &.active {
+-                ${tw`text-neutral-100`};
+-                box-shadow: inset 0 -2px ${theme`colors.cyan.600`.toString()};
++                ${tw`text-neutral-50`};
++                background-color: var(--sys-select);
+             }
+         }
+     }
+diff --git a/resources/scripts/components/elements/Switch.tsx b/resources/scripts/components/elements/Switch.tsx
+index 45c7384..c66bfcf 100644
+--- a/resources/scripts/components/elements/Switch.tsx
++++ b/resources/scripts/components/elements/Switch.tsx
+@@ -5,33 +5,50 @@ import tw from 'twin.macro';
+ import Label from '@/components/elements/Label';
+ import Input from '@/components/elements/Input';
+ 
++// iOS 開關：51×31，綠色軌道，白色圓鈕以彈簧滑動
+ const ToggleContainer = styled.div`
+-    ${tw`relative select-none w-12 leading-normal`};
++    ${tw`relative select-none leading-normal`};
++    width: 51px;
+ 
+     & > input[type='checkbox'] {
+         ${tw`hidden`};
+ 
+         &:checked + label {
+-            ${tw`bg-primary-500 border-primary-700 shadow-none`};
++            ${tw`bg-green-500`};
+         }
+ 
+         &:checked + label:before {
+-            right: 0.125rem;
++            transform: translateX(20px);
++        }
++
++        /* 按住時圓鈕拉長，和 iOS 一樣 */
++        &:not(:disabled) + label:active:before {
++            width: 33px;
++        }
++
++        &:checked:not(:disabled) + label:active:before {
++            transform: translateX(14px);
++        }
++
++        &:disabled + label {
++            ${tw`opacity-50 cursor-not-allowed`};
+         }
+     }
+ 
+     & > label {
+-        ${tw`mb-0 block overflow-hidden cursor-pointer bg-neutral-400 border border-neutral-700 rounded-full h-6 shadow-inner`};
+-        transition: all 75ms linear;
++        ${tw`mb-0 block overflow-hidden cursor-pointer bg-neutral-500 rounded-full`};
++        height: 31px;
++        transition: background-color 0.25s ease;
+ 
+         &::before {
+-            ${tw`absolute block bg-white border h-5 w-5 rounded-full`};
+-            top: 0.125rem;
+-            right: calc(50% + 0.125rem);
+-            //width: 1.25rem;
+-            //height: 1.25rem;
++            ${tw`absolute block bg-white rounded-full`};
++            top: 2px;
++            left: 2px;
++            width: 27px;
++            height: 27px;
+             content: '';
+-            transition: all 75ms ease-in;
++            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 1px 1px rgba(0, 0, 0, 0.16);
++            transition: transform 0.45s var(--lg-spring), width 0.3s var(--lg-spring);
+         }
+     }
+ `;
+diff --git a/resources/scripts/components/elements/TitledGreyBox.tsx b/resources/scripts/components/elements/TitledGreyBox.tsx
+index e135549..da520d2 100644
+--- a/resources/scripts/components/elements/TitledGreyBox.tsx
++++ b/resources/scripts/components/elements/TitledGreyBox.tsx
+@@ -12,18 +12,18 @@ interface Props {
+ }
+ 
+ const TitledGreyBox = ({ icon, title, children, className }: Props) => (
+-    <div css={tw`rounded shadow-md bg-neutral-700`} className={className}>
+-        <div css={tw`bg-neutral-900 rounded-t p-3 border-b border-black`}>
++    <div css={tw`rounded-xl bg-neutral-700`} className={className}>
++        <div css={tw`px-4 pt-4 pb-1`}>
+             {typeof title === 'string' ? (
+-                <p css={tw`text-sm uppercase`}>
+-                    {icon && <FontAwesomeIcon icon={icon} css={tw`mr-2 text-neutral-300`} />}
++                <p css={tw`text-sm font-semibold text-neutral-300`}>
++                    {icon && <FontAwesomeIcon icon={icon} css={tw`mr-2 text-blue-400`} />}
+                     {title}
+                 </p>
+             ) : (
+                 title
+             )}
+         </div>
+-        <div css={tw`p-3`}>{children}</div>
++        <div css={tw`p-4`}>{children}</div>
+     </div>
+ );
+ 
+diff --git a/resources/scripts/components/elements/activity/ActivityLogEntry.tsx b/resources/scripts/components/elements/activity/ActivityLogEntry.tsx
+index 183b2ab..cbd2e64 100644
+--- a/resources/scripts/components/elements/activity/ActivityLogEntry.tsx
++++ b/resources/scripts/components/elements/activity/ActivityLogEntry.tsx
+@@ -11,6 +11,7 @@ import style from './style.module.css';
+ import Avatar from '@/components/Avatar';
+ import useLocationHash from '@/plugins/useLocationHash';
+ import { getObjectKeys, isObject } from '@/lib/objects';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ interface Props {
+     activity: ActivityLog;
+@@ -83,7 +84,7 @@ export default ({ activity, children }: Props) => {
+                     <div className={'mt-1 flex items-center text-sm'}>
+                         {activity.ip && (
+                             <span>
+-                                {activity.ip}
++                                <Spoiler>{activity.ip}</Spoiler>
+                                 <span className={'text-gray-400'}>&nbsp;|&nbsp;</span>
+                             </span>
+                         )}
+diff --git a/resources/scripts/components/elements/alert/Alert.tsx b/resources/scripts/components/elements/alert/Alert.tsx
+index e99d6d5..0c7762e 100644
+--- a/resources/scripts/components/elements/alert/Alert.tsx
++++ b/resources/scripts/components/elements/alert/Alert.tsx
+@@ -12,10 +12,10 @@ export default ({ type, className, children }: AlertProps) => {
+     return (
+         <div
+             className={classNames(
+-                'flex items-center border-l-8 text-gray-50 rounded-md shadow px-4 py-3',
++                'flex items-center text-gray-50 rounded-xl px-4 py-3',
+                 {
+-                    ['border-red-500 bg-red-500/25']: type === 'danger',
+-                    ['border-yellow-500 bg-yellow-500/25']: type === 'warning',
++                    ['bg-red-500/15 ring-1 ring-inset ring-red-500/30']: type === 'danger',
++                    ['bg-yellow-500/15 ring-1 ring-inset ring-yellow-500/30']: type === 'warning',
+                 },
+                 className
+             )}
+diff --git a/resources/scripts/components/elements/button/style.module.css b/resources/scripts/components/elements/button/style.module.css
+index 700c676..260386b 100644
+--- a/resources/scripts/components/elements/button/style.module.css
++++ b/resources/scripts/components/elements/button/style.module.css
+@@ -1,11 +1,20 @@
+ .button {
+-    @apply px-4 py-2 inline-flex items-center justify-center;
+-    @apply rounded text-base font-semibold transition-all duration-100;
+-    @apply focus:ring-[3px] focus:ring-offset-2 focus:ring-offset-gray-700 focus:ring-opacity-50;
++    /* 系統主題：膠囊形、按下時彈簧縮放 */
++    @apply px-5 py-2 inline-flex items-center justify-center gap-2;
++    @apply rounded-full text-base font-semibold;
++    @apply focus:ring-[3px] focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-opacity-50;
++    transition-property: transform, background-color, color, box-shadow, opacity;
++    transition-duration: 0.5s, 0.2s, 0.2s, 0.2s, 0.2s;
++    transition-timing-function: var(--lg-spring), ease, ease, ease, ease;
++
++    &:not(:disabled):active {
++        transform: scale(0.96);
++        transition-duration: 0.15s, 0.1s, 0.1s, 0.1s, 0.1s;
++    }
+ 
+     /* Sizing Controls */
+     &.small {
+-        @apply px-4 py-0 h-8 font-normal text-sm focus:ring-2;
++        @apply px-4 py-0 h-8 font-medium text-sm focus:ring-2;
+     }
+ 
+     &.large {
+@@ -13,7 +22,7 @@
+     }
+ 
+     &.secondary {
+-        @apply text-gray-50 bg-transparent;
++        @apply text-blue-400 bg-transparent;
+ 
+         &:disabled {
+             background: transparent !important;
+@@ -34,40 +43,40 @@
+ }
+ 
+ .primary {
+-    @apply bg-blue-600 text-blue-50;
+-    @apply hover:bg-blue-500 active:bg-blue-500 focus:ring-blue-400 focus:ring-opacity-75;
++    @apply bg-blue-500 text-white;
++    @apply hover:bg-blue-400 active:bg-blue-400 focus:ring-blue-400 focus:ring-opacity-75;
+ 
+     &.secondary {
+-        @apply hover:bg-blue-600 active:bg-blue-600;
++        @apply hover:bg-blue-500/15 active:bg-blue-500/20;
+     }
+ 
+     &:disabled {
+-        @apply bg-blue-500/75 text-blue-200/75;
++        @apply bg-blue-500/40 text-white/50;
+     }
+ }
+ 
+ .text {
+-    @apply bg-gray-500 text-gray-50;
+-    @apply hover:bg-gray-400 active:bg-gray-400 focus:ring-gray-300 focus:ring-opacity-50;
++    @apply bg-gray-600 text-gray-50;
++    @apply hover:bg-gray-500 active:bg-gray-500 focus:ring-gray-300 focus:ring-opacity-50;
+ 
+     &.secondary {
+-        @apply hover:bg-gray-500 active:bg-gray-500;
++        @apply text-gray-100 hover:bg-gray-50/10 active:bg-gray-50/15;
+     }
+ 
+     &:disabled {
+-        @apply bg-gray-500/75 text-gray-200/75;
++        @apply bg-gray-600/60 text-gray-400;
+     }
+ }
+ 
+ .danger {
+-    @apply bg-red-600 text-gray-50;
+-    @apply hover:bg-red-500 active:bg-red-500 focus:ring-red-400 focus:ring-opacity-75;
++    @apply bg-red-500 text-white;
++    @apply hover:bg-red-400 active:bg-red-400 focus:ring-red-400 focus:ring-opacity-75;
+ 
+     &.secondary {
+-        @apply hover:bg-red-600 active:bg-red-600;
++        @apply text-red-400 hover:bg-red-500/15 active:bg-red-500/20;
+     }
+ 
+     &:disabled {
+-        @apply bg-red-600/75 text-red-50/75;
++        @apply bg-red-500/40 text-white/50;
+     }
+ }
+diff --git a/resources/scripts/components/elements/dialog/Dialog.tsx b/resources/scripts/components/elements/dialog/Dialog.tsx
+index bb35fe8..f57c598 100644
+--- a/resources/scripts/components/elements/dialog/Dialog.tsx
++++ b/resources/scripts/components/elements/dialog/Dialog.tsx
+@@ -3,11 +3,13 @@ import { Dialog as HDialog } from '@headlessui/react';
+ import { Button } from '@/components/elements/button/index';
+ import { XIcon } from '@heroicons/react/solid';
+ import { AnimatePresence, motion } from 'framer-motion';
++import classNames from 'classnames';
+ import { DialogContext, IconPosition, RenderDialogProps, styles } from './';
+ 
+ const variants = {
+     open: {
+         scale: 1,
++        y: 0,
+         opacity: 1,
+         transition: {
+             type: 'spring',
+@@ -17,7 +19,8 @@ const variants = {
+         },
+     },
+     closed: {
+-        scale: 0.75,
++        scale: 0.94,
++        y: 24,
+         opacity: 0,
+         transition: {
+             type: 'easeIn',
+@@ -72,7 +75,7 @@ export default ({
+                         open={open}
+                         onClose={onDialogClose}
+                     >
+-                        <div className={'fixed inset-0 bg-gray-900/50 z-40'} />
++                        <div className={'fixed inset-0 bg-black/50 z-40'} />
+                         <div className={'fixed inset-0 overflow-y-auto z-50'}>
+                             <div
+                                 ref={container}
+@@ -86,7 +89,8 @@ export default ({
+                                     animate={down ? 'bounce' : 'open'}
+                                     exit={'closed'}
+                                     variants={variants}
+-                                    className={styles.panel}
++                                    className={classNames(styles.panel, 'lg sys-sheet')}
++                                    data-glass
+                                 >
+                                     <div className={'flex p-6 pb-0 overflow-y-auto'}>
+                                         {iconPosition === 'container' && icon}
+diff --git a/resources/scripts/components/elements/dialog/style.module.css b/resources/scripts/components/elements/dialog/style.module.css
+index 6e78fd4..4852a4f 100644
+--- a/resources/scripts/components/elements/dialog/style.module.css
++++ b/resources/scripts/components/elements/dialog/style.module.css
+@@ -1,14 +1,15 @@
+ .container {
+-    @apply flex min-h-full items-center justify-center p-4 text-center;
++    /* 手機：像 iOS sheet 一樣貼近底部；平板以上置中 */
++    @apply flex min-h-full items-end sm:items-center justify-center p-2 pb-4 sm:p-4 text-center;
+ }
+ 
+ .panel {
+-    @apply relative bg-gray-600 rounded max-w-xl w-full mx-auto shadow-lg text-left;
+-    @apply ring-4 ring-gray-800 ring-opacity-80;
++    /* 玻璃控制層：外觀來自 .lg.sys-sheet（system-theme/roles.css） */
++    @apply relative max-w-xl w-full mx-auto text-left;
+ }
+ 
+ .title {
+-    @apply font-header text-xl font-medium mb-2 text-gray-50 pr-4;
++    @apply font-header text-xl font-semibold mb-2 text-gray-50 pr-4;
+ }
+ 
+ .close_icon {
+@@ -16,7 +17,7 @@
+ }
+ 
+ .dialog_icon {
+-    @apply flex items-center justify-center w-10 h-10 rounded-full mr-4;
++    @apply flex items-center justify-center w-11 h-11 rounded-full mr-4;
+ 
+     &.danger {
+         @apply bg-red-500 text-red-50;
+diff --git a/resources/scripts/components/elements/dropdown/Dropdown.tsx b/resources/scripts/components/elements/dropdown/Dropdown.tsx
+index ef378ef..934ebd5 100644
+--- a/resources/scripts/components/elements/dropdown/Dropdown.tsx
++++ b/resources/scripts/components/elements/dropdown/Dropdown.tsx
+@@ -11,7 +11,7 @@ interface Props {
+ }
+ 
+ const DropdownGap = ({ invisible }: { invisible?: boolean }) => (
+-    <div className={classNames('border m-2', { 'border-neutral-700': !invisible, 'border-transparent': invisible })} />
++    <div className={classNames('border-t my-1.5 mx-3', { 'border-neutral-50/10': !invisible, 'border-transparent': invisible })} />
+ );
+ 
+ type TypedChild = (React.ReactChild | React.ReactFragment | React.ReactPortal) & {
+@@ -36,15 +36,15 @@ const Dropdown = forwardRef<typeof Menu, Props>(({ as, children }, ref) => {
+         <Menu as={as || 'div'} className={styles.menu} ref={ref}>
+             {Button}
+             <Transition
+-                enter={'transition duration-100 ease-out'}
+-                enterFrom={'transition scale-95 opacity-0'}
++                enter={'transition duration-300 ease-spring'}
++                enterFrom={'transition scale-90 opacity-0'}
+                 enterTo={'transform scale-100 opacity-100'}
+                 leave={'transition duration-75 ease-out'}
+                 leaveFrom={'transform scale-100 opacity-100'}
+                 leaveTo={'transform scale-95 opacity-0'}
+             >
+-                <Menu.Items className={classNames(styles.items_container, 'w-56')}>
+-                    <div className={'px-1 py-1'}>{items}</div>
++                <Menu.Items className={classNames(styles.items_container, 'lg sys-menu w-60')} data-glass>
++                    <div>{items}</div>
+                 </Menu.Items>
+             </Transition>
+         </Menu>
+diff --git a/resources/scripts/components/elements/dropdown/style.module.css b/resources/scripts/components/elements/dropdown/style.module.css
+index 0b98e34..f0c784f 100644
+--- a/resources/scripts/components/elements/dropdown/style.module.css
++++ b/resources/scripts/components/elements/dropdown/style.module.css
+@@ -2,15 +2,15 @@
+   @apply relative inline-block text-left;
+ 
+   & .button {
+-    @apply inline-flex justify-center items-center w-full py-2 text-neutral-100 rounded-md;
++    @apply inline-flex justify-center items-center w-full py-2 text-neutral-100 rounded-full;
+     @apply transition-all duration-100;
+ 
+     &:hover, &[aria-expanded="true"] {
+-      @apply bg-neutral-600 text-white;
++      @apply bg-neutral-50/10 text-neutral-50;
+     }
+ 
+     &:focus, &:focus-within, &:active {
+-      @apply ring-2 ring-opacity-50 ring-neutral-300 text-white;
++      @apply ring-2 ring-opacity-50 ring-neutral-300 text-neutral-50;
+     }
+ 
+     & svg {
+@@ -23,36 +23,42 @@
+   }
+ 
+   & .items_container {
+-    @apply absolute right-0 mt-2 origin-top-right bg-neutral-900 rounded z-10;
++    @apply absolute right-0 mt-2 origin-top-right z-10;
+   }
+ }
+ 
+ .menu_item {
+-  @apply flex items-center rounded w-full px-2 py-2;
++  @apply flex items-center rounded-lg w-full px-3 py-2.5 text-neutral-50;
+ 
+   & svg {
+-    @apply w-4 h-4 mr-4 text-neutral-300;
++    @apply w-4 h-4 mr-3 text-neutral-300;
+   }
+ 
+   &:hover, &:focus {
+-    @apply bg-blue-500 text-blue-50;
++    @apply bg-neutral-50/10 text-neutral-50;
+ 
+     & svg {
+-      @apply text-blue-50;
++      @apply text-neutral-50;
+     }
+   }
+ 
+   &.danger {
++    @apply text-red-400;
++
++    & svg {
++      @apply text-red-400;
++    }
++
+     &:hover, &:focus {
+-      @apply bg-red-500 text-red-50;
++      @apply bg-red-500/15 text-red-300;
+ 
+       & svg {
+-        @apply text-red-50;
++        @apply text-red-300;
+       }
+     }
+   }
+ 
+   &.disabled {
+-    @apply cursor-not-allowed hover:bg-neutral-800 opacity-30 focus:bg-transparent focus:hover:bg-neutral-800;
++    @apply cursor-not-allowed opacity-30 hover:bg-transparent focus:bg-transparent;
+   }
+ }
+diff --git a/resources/scripts/components/elements/inputs/styles.module.css b/resources/scripts/components/elements/inputs/styles.module.css
+index 3b2e521..a15fd80 100644
+--- a/resources/scripts/components/elements/inputs/styles.module.css
++++ b/resources/scripts/components/elements/inputs/styles.module.css
+@@ -1,8 +1,12 @@
+ .checkbox_input {
+-    @apply w-4 h-4 rounded-sm border-neutral-500 bg-neutral-600 text-primary-500;
++    @apply w-5 h-5 rounded-md border-neutral-500 bg-neutral-600 text-primary-500;
++
++    &:checked {
++        animation: lg-pop 0.35s var(--lg-spring);
++    }
+ 
+     &:focus, &:active {
+-        @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-neutral-700;
++        @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-neutral-800;
+     }
+ 
+     &.indeterminate:checked {
+@@ -13,10 +17,10 @@
+ 
+ .text_input {
+     @apply transition-shadow duration-75;
+-    @apply w-full bg-neutral-800 rounded px-4 py-2 outline-none border-0;
++    @apply w-full bg-neutral-600 text-neutral-50 rounded-lg px-4 py-2.5 outline-none border-0 placeholder:text-neutral-400;
+ 
+     &:focus, &:active {
+-        @apply ring-4 ring-blue-300 ring-opacity-75;
++        @apply ring-4 ring-blue-500/30;
+     }
+ 
+     &.loose {
+diff --git a/resources/scripts/components/elements/tooltip/Tooltip.tsx b/resources/scripts/components/elements/tooltip/Tooltip.tsx
+index ce488dc..9143f08 100644
+--- a/resources/scripts/components/elements/tooltip/Tooltip.tsx
++++ b/resources/scripts/components/elements/tooltip/Tooltip.tsx
+@@ -1,4 +1,5 @@
+ import React, { cloneElement, useRef, useState } from 'react';
++import { createPortal } from 'react-dom';
+ import {
+     arrow,
+     autoUpdate,
+@@ -80,39 +81,43 @@ export default ({ children, ...props }: Props) => {
+     return (
+         <>
+             {cloneElement(children, getReferenceProps({ ref: reference, ...children.props }))}
+-            <AnimatePresence>
+-                {open && (
+-                    <motion.div
+-                        initial={{ opacity: 0, scale: 0.85 }}
+-                        animate={{ opacity: 1, scale: 1 }}
+-                        exit={{ opacity: 0 }}
+-                        transition={{ type: 'spring', damping: 20, stiffness: 300, duration: 0.075 }}
+-                        {...getFloatingProps({
+-                            ref: floating,
+-                            className:
+-                                'bg-gray-900 text-sm text-gray-200 px-3 py-2 rounded pointer-events-none max-w-[24rem]',
+-                            style: {
+-                                position: strategy,
+-                                top: `${y || 0}px`,
+-                                left: `${x || 0}px`,
+-                            },
+-                        })}
+-                    >
+-                        {props.content}
+-                        {props.arrow && (
+-                            <div
+-                                ref={arrowEl}
+-                                style={{
+-                                    transform: `translate(${Math.round(ax || 0)}px, ${Math.round(
+-                                        ay || 0
+-                                    )}px) rotate(45deg)`,
+-                                }}
+-                                className={classNames('absolute bg-gray-900 w-3 h-3', side)}
+-                            />
+-                        )}
+-                    </motion.div>
+-                )}
+-            </AnimatePresence>
++            {/* 畫到 body：放在玻璃導覽列裡會被 backdrop-filter 改變定位基準，還會撐出捲軸 */}
++            {createPortal(
++                <AnimatePresence>
++                    {open && (
++                        <motion.div
++                            initial={{ opacity: 0, scale: 0.85 }}
++                            animate={{ opacity: 1, scale: 1 }}
++                            exit={{ opacity: 0 }}
++                            transition={{ type: 'spring', damping: 20, stiffness: 300, duration: 0.075 }}
++                            {...getFloatingProps({
++                                ref: floating,
++                                className:
++                                    'lg sys-tip text-sm font-medium text-gray-50 px-3 py-2 pointer-events-none max-w-[24rem]',
++                                style: {
++                                    position: strategy,
++                                    top: `${y || 0}px`,
++                                    left: `${x || 0}px`,
++                                },
++                            })}
++                        >
++                            {props.content}
++                            {props.arrow && (
++                                <div
++                                    ref={arrowEl}
++                                    style={{
++                                        transform: `translate(${Math.round(ax || 0)}px, ${Math.round(
++                                            ay || 0
++                                        )}px) rotate(45deg)`,
++                                    }}
++                                    className={classNames('absolute w-3 h-3 opacity-0', side)}
++                                />
++                            )}
++                        </motion.div>
++                    )}
++                </AnimatePresence>,
++                document.body
++            )}
+         </>
+     );
+ };
+diff --git a/resources/scripts/components/server/console/Console.tsx b/resources/scripts/components/server/console/Console.tsx
+index 0879d20..6c7cdd5 100644
+--- a/resources/scripts/components/server/console/Console.tsx
++++ b/resources/scripts/components/server/console/Console.tsx
+@@ -15,31 +15,34 @@ import { debounce } from 'debounce';
+ import { usePersistedState } from '@/plugins/usePersistedState';
+ import { SocketEvent, SocketRequest } from '@/components/server/events';
+ import classNames from 'classnames';
+-import { ChevronDoubleRightIcon } from '@heroicons/react/solid';
++import { ChevronDoubleRightIcon, EyeIcon, EyeOffIcon } from '@heroicons/react/solid';
+ 
+ import 'xterm/css/xterm.css';
+ import styles from './style.module.css';
++import * as tokens from '@/system-theme/tokens';
+ 
++// 終端機在深色 / 淺色模式都維持深色；xterm 畫在 canvas 上，需要實際色值（取自 tokens.js 深色色盤）
++const dk = tokens.modes.dark;
+ const theme = {
+-    background: th`colors.black`.toString(),
++    background: '#000000',
+     cursor: 'transparent',
+-    black: th`colors.black`.toString(),
+-    red: '#E54B4B',
+-    green: '#9ECE58',
+-    yellow: '#FAED70',
+-    blue: '#396FE2',
+-    magenta: '#BB80B3',
+-    cyan: '#2DDAFD',
+-    white: '#d0d0d0',
+-    brightBlack: 'rgba(255, 255, 255, 0.2)',
+-    brightRed: '#FF5370',
+-    brightGreen: '#C3E88D',
+-    brightYellow: '#FFCB6B',
+-    brightBlue: '#82AAFF',
+-    brightMagenta: '#C792EA',
+-    brightCyan: '#89DDFF',
++    black: '#000000',
++    red: dk.red[500],
++    green: dk.green[500],
++    yellow: '#ffd60a',
++    blue: dk.blue[500],
++    magenta: '#bf5af2',
++    cyan: dk.cyan[400],
++    white: dk.gray[100],
++    brightBlack: 'rgba(235, 235, 245, 0.35)',
++    brightRed: dk.red[300],
++    brightGreen: dk.green[300],
++    brightYellow: '#ffe580',
++    brightBlue: dk.blue[300],
++    brightMagenta: '#da8fff',
++    brightCyan: dk.cyan[200],
+     brightWhite: '#ffffff',
+-    selection: '#FAF089',
++    selection: 'rgba(10, 132, 255, 0.4)',
+ };
+ 
+ const terminalProps: ITerminalOptions = {
+@@ -53,6 +56,8 @@ const terminalProps: ITerminalOptions = {
+ };
+ 
+ export default () => {
++    // 防劇透：控制台輸出蓋上霧面玻璃（直播、截圖時用），記在這個瀏覽器
++    const [frosted, setFrosted] = usePersistedState<boolean>('pterodactyl:console-frost', false);
+     const TERMINAL_PRELUDE = '\u001b[1m\u001b[33mcontainer@pterodactyl~ \u001b[0m';
+     const ref = useRef<HTMLDivElement>(null);
+     const terminal = useMemo(() => new Terminal({ ...terminalProps }), []);
+@@ -202,11 +207,35 @@ export default () => {
+         <div className={classNames(styles.terminal, 'relative')}>
+             <SpinnerOverlay visible={!connected} size={'large'} />
+             <div
+-                className={classNames(styles.container, styles.overflows_container, { 'rounded-b': !canSendCommands })}
++                className={classNames(styles.container, styles.overflows_container, 'relative', {
++                    'rounded-b': !canSendCommands,
++                })}
+             >
+                 <div className={'h-full'}>
+                     <div id={styles.terminal} ref={ref} />
+                 </div>
++                <div
++                    className={'sys-frost'}
++                    data-on={frosted ? '' : undefined}
++                    aria-hidden={!frosted}
++                    onClick={() => setFrosted(false)}
++                >
++                    <span className={'sys-frost-label'}>
++                        <EyeOffIcon className={'w-4 h-4'} />
++                        控制台已霧化 · 點一下顯示
++                    </span>
++                </div>
++                <button
++                    type={'button'}
++                    className={'sys-frost-toggle lg sys-float'}
++                    data-glass
++                    aria-pressed={!!frosted}
++                    aria-label={frosted ? '顯示控制台內容' : '霧化控制台內容（防劇透）'}
++                    title={frosted ? '顯示控制台內容' : '霧化控制台內容（防劇透）'}
++                    onClick={() => setFrosted((v) => !v)}
++                >
++                    {frosted ? <EyeIcon className={'w-4 h-4'} /> : <EyeOffIcon className={'w-4 h-4'} />}
++                </button>
+             </div>
+             {canSendCommands && (
+                 <div className={classNames('relative', styles.overflows_container)}>
+@@ -222,7 +251,7 @@ export default () => {
+                     />
+                     <div
+                         className={classNames(
+-                            'text-gray-100 peer-focus:text-gray-50 peer-focus:animate-pulse',
++                            'text-[#aeaeb2] peer-focus:text-white peer-focus:animate-pulse',
+                             styles.command_icon
+                         )}
+                     >
+diff --git a/resources/scripts/components/server/console/ServerDetailsBlock.tsx b/resources/scripts/components/server/console/ServerDetailsBlock.tsx
+index a3a0096..9a2f0b2 100644
+--- a/resources/scripts/components/server/console/ServerDetailsBlock.tsx
++++ b/resources/scripts/components/server/console/ServerDetailsBlock.tsx
+@@ -16,6 +16,7 @@ import StatBlock from '@/components/server/console/StatBlock';
+ import useWebsocketEvent from '@/plugins/useWebsocketEvent';
+ import classNames from 'classnames';
+ import { capitalize } from '@/lib/strings';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ type Stats = Record<'memory' | 'cpu' | 'disk' | 'uptime' | 'rx' | 'tx', number>;
+ 
+@@ -91,7 +92,7 @@ const ServerDetailsBlock = ({ className }: { className?: string }) => {
+     return (
+         <div className={classNames('grid grid-cols-6 gap-2 md:gap-4', className)}>
+             <StatBlock icon={faWifi} title={'Address'} copyOnClick={allocation}>
+-                {allocation}
++                <Spoiler>{allocation}</Spoiler>
+             </StatBlock>
+             <StatBlock
+                 icon={faClock}
+diff --git a/resources/scripts/components/server/console/StatBlock.tsx b/resources/scripts/components/server/console/StatBlock.tsx
+index 259ff47..5ad9f31 100644
+--- a/resources/scripts/components/server/console/StatBlock.tsx
++++ b/resources/scripts/components/server/console/StatBlock.tsx
+@@ -20,19 +20,19 @@ export default ({ title, copyOnClick, icon, color, className, children }: StatBl
+ 
+     return (
+         <CopyOnClick text={copyOnClick}>
+-            <div className={classNames(styles.stat_block, 'bg-gray-600', className)}>
+-                <div className={classNames(styles.status_bar, color || 'bg-gray-700')} />
+-                <div className={classNames(styles.icon, color || 'bg-gray-700')}>
++            <div className={classNames(styles.stat_block, 'bg-gray-700', { 'sys-press cursor-pointer': !!copyOnClick }, className)}>
++                <div className={classNames(styles.status_bar, color || 'bg-gray-600')} />
++                <div className={classNames(styles.icon, color || 'bg-gray-600')}>
+                     <Icon
+                         icon={icon}
+                         className={classNames({
+-                            'text-gray-100': !color || color === 'bg-gray-700',
+-                            'text-gray-50': color && color !== 'bg-gray-700',
++                            'text-blue-400': !color || color === 'bg-gray-600',
++                            'text-white': color && color !== 'bg-gray-600',
+                         })}
+                     />
+                 </div>
+                 <div className={'flex flex-col justify-center overflow-hidden w-full'}>
+-                    <p className={'font-header font-medium leading-tight text-xs md:text-sm text-gray-200'}>{title}</p>
++                    <p className={'font-header font-semibold leading-tight text-xs md:text-sm text-gray-300'}>{title}</p>
+                     <div
+                         ref={ref}
+                         className={'h-[1.75rem] w-full font-semibold text-gray-50 truncate'}
+diff --git a/resources/scripts/components/server/console/StatGraphs.tsx b/resources/scripts/components/server/console/StatGraphs.tsx
+index 9af405b..580bc08 100644
+--- a/resources/scripts/components/server/console/StatGraphs.tsx
++++ b/resources/scripts/components/server/console/StatGraphs.tsx
+@@ -7,7 +7,6 @@ import { useChart, useChartTickLabel } from '@/components/server/console/chart';
+ import { hexToRgba } from '@/lib/helpers';
+ import { bytesToString } from '@/lib/formatters';
+ import { CloudDownloadIcon, CloudUploadIcon } from '@heroicons/react/solid';
+-import { theme } from 'twin.macro';
+ import ChartBlock from '@/components/server/console/ChartBlock';
+ import Tooltip from '@/components/elements/tooltip/Tooltip';
+ 
+@@ -35,8 +34,8 @@ export default () => {
+             return {
+                 ...opts,
+                 label: !index ? 'Network In' : 'Network Out',
+-                borderColor: !index ? theme('colors.cyan.400') : theme('colors.yellow.400'),
+-                backgroundColor: hexToRgba(!index ? theme('colors.cyan.700') : theme('colors.yellow.700'), 0.5),
++                borderColor: !index ? '#3cc4f5' : '#ff9f0a',
++                backgroundColor: hexToRgba(!index ? '#3cc4f5' : '#ff9f0a', 0.18),
+             };
+         },
+     });
+diff --git a/resources/scripts/components/server/console/chart.ts b/resources/scripts/components/server/console/chart.ts
+index 65f919a..4e34483 100644
+--- a/resources/scripts/components/server/console/chart.ts
++++ b/resources/scripts/components/server/console/chart.ts
+@@ -45,13 +45,13 @@ const options: ChartOptions<'line'> = {
+             type: 'linear',
+             grid: {
+                 display: true,
+-                color: theme('colors.gray.700'),
++                color: 'rgba(142, 142, 147, 0.22)',
+                 drawBorder: false,
+             },
+             ticks: {
+                 display: true,
+                 count: 3,
+-                color: theme('colors.gray.200'),
++                color: '#8e8e93',
+                 font: {
+                     family: theme('fontFamily.sans'),
+                     size: 11,
+@@ -91,8 +91,8 @@ function getEmptyData(label: string, sets = 1, callback?: ChartDatasetCallback |
+                         fill: true,
+                         label,
+                         data: Array(20).fill(-5),
+-                        borderColor: theme('colors.cyan.400'),
+-                        backgroundColor: hexToRgba(theme('colors.cyan.700'), 0.5),
++                        borderColor: '#3cc4f5',
++                        backgroundColor: hexToRgba('#3cc4f5', 0.18),
+                     },
+                     index
+                 )
+diff --git a/resources/scripts/components/server/console/style.module.css b/resources/scripts/components/server/console/style.module.css
+index 8088fcb..d111dd9 100644
+--- a/resources/scripts/components/server/console/style.module.css
++++ b/resources/scripts/components/server/console/style.module.css
+@@ -1,5 +1,5 @@
+ .stat_block {
+-    @apply flex items-center rounded shadow-lg relative;
++    @apply flex items-center rounded-xl relative;
+     @apply col-span-3 md:col-span-2 lg:col-span-6;
+     @apply px-3 py-2 md:p-3 lg:p-4;
+ 
+@@ -8,12 +8,12 @@
+     }
+ 
+     & > .icon {
+-        @apply hidden flex-shrink-0 items-center justify-center rounded-lg shadow-md w-12 h-12;
++        @apply hidden flex-shrink-0 items-center justify-center rounded-xl w-11 h-11;
+         @apply transition-colors duration-500;
+         @apply sm:flex sm:mr-4;
+ 
+         & > svg {
+-            @apply w-6 h-6 m-auto;
++            @apply w-5 h-5 m-auto;
+         }
+     }
+ }
+@@ -31,7 +31,7 @@
+     }
+ 
+     & > .container {
+-        @apply rounded-t p-1 sm:p-2 bg-black min-h-[16rem] flex-1 font-mono text-sm;
++        @apply rounded-t-xl p-2 sm:p-3 bg-black min-h-[16rem] flex-1 font-mono text-sm ring-1 ring-inset ring-white/10;
+ 
+         & #terminal {
+             @apply h-full;
+@@ -41,7 +41,7 @@
+             }
+ 
+             &::-webkit-scrollbar-thumb {
+-                @apply bg-gray-900;
++                @apply bg-[#3a3a3c];
+             }
+         }
+     }
+@@ -51,13 +51,14 @@
+     }
+ 
+     & .command_input {
+-        @apply relative bg-gray-900 px-2 text-gray-100 pl-10 pr-4 py-2 w-full font-mono text-sm sm:rounded-b;
++        /* 終端機永遠是深色，輸入列也固定深色 */
++        @apply relative bg-[#1c1c1e] px-2 text-[#f5f5f7] pl-10 pr-4 py-3 w-full font-mono text-sm sm:rounded-b-xl;
+         @apply focus:ring-0 outline-none focus-visible:outline-none;
+         @apply border-0 border-b-2 border-transparent transition-colors duration-100;
+-        @apply active:border-cyan-500 focus:border-cyan-500;
++        @apply active:border-blue-500 focus:border-blue-500;
+     }
+ }
+ 
+ .chart_container {
+-    @apply bg-gray-600 rounded shadow-lg pt-2 border-b-4 border-gray-700 relative;
++    @apply bg-gray-700 rounded-xl pt-3 relative overflow-hidden;
+ }
+diff --git a/resources/scripts/components/server/databases/DatabaseRow.tsx b/resources/scripts/components/server/databases/DatabaseRow.tsx
+index 017ff56..d97f861 100644
+--- a/resources/scripts/components/server/databases/DatabaseRow.tsx
++++ b/resources/scripts/components/server/databases/DatabaseRow.tsx
+@@ -19,6 +19,7 @@ import Label from '@/components/elements/Label';
+ import Input from '@/components/elements/Input';
+ import GreyRowBox from '@/components/elements/GreyRowBox';
+ import CopyOnClick from '@/components/elements/CopyOnClick';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ interface Props {
+     database: ServerDatabase;
+@@ -102,9 +103,11 @@ export default ({ database, className }: Props) => {
+                 <h3 css={tw`mb-6 text-2xl`}>Database connection details</h3>
+                 <div>
+                     <Label>Endpoint</Label>
+-                    <CopyOnClick text={database.connectionString}>
+-                        <Input type={'text'} readOnly value={database.connectionString} />
+-                    </CopyOnClick>
++                    <Spoiler block label={'資料庫位址'}>
++                        <CopyOnClick text={database.connectionString}>
++                            <Input type={'text'} readOnly value={database.connectionString} />
++                        </CopyOnClick>
++                    </Spoiler>
+                 </div>
+                 <div css={tw`mt-6`}>
+                     <Label>Connections from</Label>
+@@ -126,9 +129,11 @@ export default ({ database, className }: Props) => {
+                 </Can>
+                 <div css={tw`mt-6`}>
+                     <Label>JDBC Connection String</Label>
+-                    <CopyOnClick text={jdbcConnectionString} showInNotification={false}>
+-                        <Input type={'text'} readOnly value={jdbcConnectionString} />
+-                    </CopyOnClick>
++                    <Spoiler block label={'JDBC 連線字串'}>
++                        <CopyOnClick text={jdbcConnectionString} showInNotification={false}>
++                            <Input type={'text'} readOnly value={jdbcConnectionString} />
++                        </CopyOnClick>
++                    </Spoiler>
+                 </div>
+                 <div css={tw`mt-6 text-right`}>
+                     <Can action={'database.update'}>
+@@ -149,9 +154,11 @@ export default ({ database, className }: Props) => {
+                     </CopyOnClick>
+                 </div>
+                 <div css={tw`ml-8 text-center hidden md:block`}>
+-                    <CopyOnClick text={database.connectionString}>
+-                        <p css={tw`text-sm`}>{database.connectionString}</p>
+-                    </CopyOnClick>
++                    <Spoiler label={'資料庫位址'}>
++                        <CopyOnClick text={database.connectionString}>
++                            <p css={tw`text-sm`}>{database.connectionString}</p>
++                        </CopyOnClick>
++                    </Spoiler>
+                     <p css={tw`mt-1 text-2xs text-neutral-500 uppercase select-none`}>Endpoint</p>
+                 </div>
+                 <div css={tw`ml-8 text-center hidden md:block`}>
+diff --git a/resources/scripts/components/server/files/FileEditContainer.tsx b/resources/scripts/components/server/files/FileEditContainer.tsx
+index 9ca074b..ba64fca 100644
+--- a/resources/scripts/components/server/files/FileEditContainer.tsx
++++ b/resources/scripts/components/server/files/FileEditContainer.tsx
+@@ -130,11 +130,11 @@ export default () => {
+             {hash.replace(/^#/, '').endsWith('.pteroignore') && (
+                 <div css={tw`mb-4 p-4 border-l-4 bg-neutral-900 rounded border-cyan-400`}>
+                     <p css={tw`text-neutral-300 text-sm`}>
+-                        You&apos;re editing a <code css={tw`font-mono bg-black rounded py-px px-1`}>.pteroignore</code>{' '}
++                        You&apos;re editing a <code css={tw`font-mono bg-neutral-600 text-neutral-50 rounded py-px px-1`}>.pteroignore</code>{' '}
+                         file. Any files or directories listed in here will be excluded from backups. Wildcards are
+-                        supported by using an asterisk (<code css={tw`font-mono bg-black rounded py-px px-1`}>*</code>).
++                        supported by using an asterisk (<code css={tw`font-mono bg-neutral-600 text-neutral-50 rounded py-px px-1`}>*</code>).
+                         You can negate a prior rule by prepending an exclamation point (
+-                        <code css={tw`font-mono bg-black rounded py-px px-1`}>!</code>).
++                        <code css={tw`font-mono bg-neutral-600 text-neutral-50 rounded py-px px-1`}>!</code>).
+                     </p>
+                 </div>
+             )}
+diff --git a/resources/scripts/components/server/files/MassActionsBar.tsx b/resources/scripts/components/server/files/MassActionsBar.tsx
+index 5d6ff42..039c522 100644
+--- a/resources/scripts/components/server/files/MassActionsBar.tsx
++++ b/resources/scripts/components/server/files/MassActionsBar.tsx
+@@ -95,7 +95,7 @@ const MassActionsBar = () => {
+                 <Portal>
+                     <div className={'pointer-events-none fixed bottom-0 mb-6 flex justify-center w-full z-50'}>
+                         <Fade timeout={75} in={selectedFiles.length > 0} unmountOnExit>
+-                            <div css={tw`flex items-center space-x-4 pointer-events-auto rounded p-4 bg-black/50`}>
++                            <div className={'lg sys-float'} data-glass css={tw`flex items-center space-x-3 pointer-events-auto p-2.5`}>
+                                 <Button onClick={() => setShowMove(true)}>Move</Button>
+                                 <Button onClick={onClickCompress}>Archive</Button>
+                                 <Button.Danger variant={Button.Variants.Secondary} onClick={() => setShowConfirm(true)}>
+diff --git a/resources/scripts/components/server/files/style.module.css b/resources/scripts/components/server/files/style.module.css
+index f3f688f..ba064e5 100644
+--- a/resources/scripts/components/server/files/style.module.css
++++ b/resources/scripts/components/server/files/style.module.css
+@@ -15,11 +15,23 @@
+ }
+ 
+ .file_row {
+-    @apply flex items-center cursor-pointer bg-neutral-700 rounded-sm mb-px text-sm no-underline;
++    /* iOS 分組清單：整組圓角、列與列之間是細分隔線 */
++    @apply flex items-center cursor-pointer bg-neutral-700 text-sm no-underline;
+     @apply hover:text-neutral-100 hover:bg-neutral-600;
++    box-shadow: inset 0 -0.5px 0 rgba(84, 84, 88, 0.55);
++    transition: background-color 0.15s ease;
++
++    &:first-child {
++        @apply rounded-t-xl;
++    }
++
++    &:last-child {
++        @apply rounded-b-xl;
++        box-shadow: none;
++    }
+ 
+     & > .details {
+-        @apply flex flex-1 items-center text-neutral-300 no-underline px-4 py-2 overflow-hidden truncate;
++        @apply flex flex-1 items-center text-neutral-200 no-underline px-4 py-3 overflow-hidden truncate;
+ 
+         &:not(a) {
+             @apply cursor-default;
+diff --git a/resources/scripts/components/server/network/AllocationRow.tsx b/resources/scripts/components/server/network/AllocationRow.tsx
+index e68bc33..5fa9faa 100644
+--- a/resources/scripts/components/server/network/AllocationRow.tsx
++++ b/resources/scripts/components/server/network/AllocationRow.tsx
+@@ -20,6 +20,7 @@ import setPrimaryServerAllocation from '@/api/server/network/setPrimaryServerAll
+ import getServerAllocations from '@/api/swr/getServerAllocations';
+ import { ip } from '@/lib/formatters';
+ import Code from '@/components/elements/Code';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ const Label = styled.label`
+     ${tw`uppercase text-xs mt-1 text-neutral-400 block px-1 select-none transition-colors duration-150`}
+@@ -67,15 +68,19 @@ const AllocationRow = ({ allocation }: Props) => {
+                 </div>
+                 <div className={'mr-4 flex-1 md:w-40'}>
+                     {allocation.alias ? (
++                        <Spoiler label={'主機名稱'}>
+                         <CopyOnClick text={allocation.alias}>
+                             <Code dark className={'w-40 truncate'}>
+                                 {allocation.alias}
+                             </Code>
+                         </CopyOnClick>
++                        </Spoiler>
+                     ) : (
+-                        <CopyOnClick text={ip(allocation.ip)}>
+-                            <Code dark>{ip(allocation.ip)}</Code>
+-                        </CopyOnClick>
++                        <Spoiler>
++                            <CopyOnClick text={ip(allocation.ip)}>
++                                <Code dark>{ip(allocation.ip)}</Code>
++                            </CopyOnClick>
++                        </Spoiler>
+                     )}
+                     <Label>{allocation.alias ? 'Hostname' : 'IP Address'}</Label>
+                 </div>
+diff --git a/resources/scripts/components/server/schedules/ScheduleEditContainer.tsx b/resources/scripts/components/server/schedules/ScheduleEditContainer.tsx
+index bacef24..ddc5d82 100644
+--- a/resources/scripts/components/server/schedules/ScheduleEditContainer.tsx
++++ b/resources/scripts/components/server/schedules/ScheduleEditContainer.tsx
+@@ -94,7 +94,7 @@ export default () => {
+                                     {schedule.name}
+                                     {schedule.isProcessing ? (
+                                         <span
+-                                            css={tw`flex items-center rounded-full px-2 py-px text-xs ml-4 uppercase bg-neutral-600 text-white`}
++                                            css={tw`flex items-center rounded-full px-2 py-px text-xs ml-4 uppercase bg-neutral-600 text-neutral-50`}
+                                         >
+                                             <Spinner css={tw`w-3! h-3! mr-2`} />
+                                             Processing
+diff --git a/resources/scripts/components/server/schedules/ScheduleTaskRow.tsx b/resources/scripts/components/server/schedules/ScheduleTaskRow.tsx
+index f950b94..513768c 100644
+--- a/resources/scripts/components/server/schedules/ScheduleTaskRow.tsx
++++ b/resources/scripts/components/server/schedules/ScheduleTaskRow.tsx
+@@ -84,7 +84,7 @@ export default ({ schedule, task }: Props) => {
+             >
+                 Are you sure you want to delete this task? This action cannot be undone.
+             </ConfirmationModal>
+-            <FontAwesomeIcon icon={icon} css={tw`text-lg text-white hidden md:block`} />
++            <FontAwesomeIcon icon={icon} css={tw`text-lg text-neutral-50 hidden md:block`} />
+             <div css={tw`flex-none sm:flex-1 w-full sm:w-auto overflow-x-auto`}>
+                 <p css={tw`md:ml-6 text-neutral-200 uppercase text-sm`}>{title}</p>
+                 {task.payload && (
+diff --git a/resources/scripts/components/server/settings/SettingsContainer.tsx b/resources/scripts/components/server/settings/SettingsContainer.tsx
+index bcdc80b..f8797d1 100644
+--- a/resources/scripts/components/server/settings/SettingsContainer.tsx
++++ b/resources/scripts/components/server/settings/SettingsContainer.tsx
+@@ -14,6 +14,7 @@ import isEqual from 'react-fast-compare';
+ import CopyOnClick from '@/components/elements/CopyOnClick';
+ import { ip } from '@/lib/formatters';
+ import { Button } from '@/components/elements/button/index';
++import Spoiler from '@/system-theme/Spoiler';
+ 
+ export default () => {
+     const username = useStoreState((state) => state.user.data!.username);
+@@ -31,9 +32,11 @@ export default () => {
+                         <TitledGreyBox title={'SFTP Details'} css={tw`mb-6 md:mb-10`}>
+                             <div>
+                                 <Label>Server Address</Label>
+-                                <CopyOnClick text={`sftp://${ip(sftp.ip)}:${sftp.port}`}>
+-                                    <Input type={'text'} value={`sftp://${ip(sftp.ip)}:${sftp.port}`} readOnly />
+-                                </CopyOnClick>
++                                <Spoiler block label={'SFTP 位址'}>
++                                    <CopyOnClick text={`sftp://${ip(sftp.ip)}:${sftp.port}`}>
++                                        <Input type={'text'} value={`sftp://${ip(sftp.ip)}:${sftp.port}`} readOnly />
++                                    </CopyOnClick>
++                                </Spoiler>
+                             </div>
+                             <div css={tw`mt-6`}>
+                                 <Label>Username</Label>
+diff --git a/resources/scripts/index.tsx b/resources/scripts/index.tsx
+index 2aade24..8f631c7 100644
+--- a/resources/scripts/index.tsx
++++ b/resources/scripts/index.tsx
+@@ -6,6 +6,15 @@ import { setConfig } from 'react-hot-loader';
+ // Enable language support.
+ import './i18n';
+ 
++// 系統主題：液態玻璃材質與折射引擎（元素加上 className="lg" + data-glass 即生效）
++import '@/system-theme/liquid-glass.css';
++import '@/system-theme/roles.css';
++import '@/system-theme/liquid-glass';
++import { initThemeMode } from '@/system-theme/theme-mode';
++
++// 深色 / 淺色：在第一次渲染前套用，避免閃一下另一種顏色
++initThemeMode();
++
+ // Prevents page reloads while making component changes which
+ // also avoids triggering constant loading indicators all over
+ // the place in development.
+diff --git a/resources/scripts/system-theme/Spoiler.tsx b/resources/scripts/system-theme/Spoiler.tsx
+new file mode 100644
+index 0000000..ca13886
+--- /dev/null
++++ b/resources/scripts/system-theme/Spoiler.tsx
+@@ -0,0 +1,58 @@
++import React, { useEffect, useRef, useState } from 'react';
++import classNames from 'classnames';
++
++/**
++ * 防劇透霧面玻璃：把 IP、連線位址等敏感文字蓋在霧面玻璃下，點一下才顯示。
++ * - 預設隱藏；顯示 20 秒後自動霧化回去（直播、截圖時比較安全）
++ * - 隱藏時第一次點擊只負責顯示，不會觸發裡面的「點擊複製」
++ * - 鍵盤：Tab 到上面按 Enter / 空白鍵顯示
++ * 外觀見 system-theme/roles.css 的 .sys-spoiler
++ */
++interface Props {
++    children: React.ReactNode;
++    /** 顯示後多久自動隱藏（毫秒），0 = 不自動隱藏 */
++    autoHide?: number;
++    /** block = 包住整個輸入框之類的區塊元素（以 display:block 呈現） */
++    block?: boolean;
++    className?: string;
++    label?: string;
++}
++
++const Spoiler = ({ children, autoHide = 20000, block, className, label = 'IP 位址' }: Props) => {
++    const [hidden, setHidden] = useState(true);
++    const timer = useRef<ReturnType<typeof setTimeout>>();
++
++    useEffect(() => {
++        if (hidden || !autoHide) return;
++        timer.current = setTimeout(() => setHidden(true), autoHide);
++        return () => clearTimeout(timer.current);
++    }, [hidden, autoHide]);
++
++    const reveal = (e: React.SyntheticEvent) => {
++        if (!hidden) return;
++        e.preventDefault();
++        e.stopPropagation();
++        setHidden(false);
++    };
++
++    return (
++        <span
++            className={classNames('sys-spoiler', { 'sys-spoiler-block': block }, className)}
++            data-hidden={hidden ? '' : undefined}
++            onClickCapture={reveal}
++            onKeyDown={(e: React.KeyboardEvent) => {
++                if (hidden && (e.key === 'Enter' || e.key === ' ')) reveal(e);
++            }}
++            role={hidden ? 'button' : undefined}
++            tabIndex={hidden ? 0 : undefined}
++            aria-label={hidden ? `${label}已隱藏，按一下顯示` : undefined}
++            title={hidden ? '點一下顯示' : undefined}
++        >
++            <span className={'sys-spoiler-content'} aria-hidden={hidden}>
++                {children}
++            </span>
++        </span>
++    );
++};
++
++export default Spoiler;
+diff --git a/resources/scripts/system-theme/liquid-glass.css b/resources/scripts/system-theme/liquid-glass.css
+new file mode 100644
+index 0000000..f677903
+--- /dev/null
++++ b/resources/scripts/system-theme/liquid-glass.css
+@@ -0,0 +1,116 @@
++/* Liquid Glass v2 — 搭配 liquid-glass.js
++ * 原則：玻璃只給「浮在內容上方的控制層」（導覽列、分頁列、按鈕、選單、提示），內容卡片用實心表面。
++ */
++:root {
++  --lg-radius: 24px;
++  /* 深色：煙燻玻璃。比「全透明」多一點霧與底色，背後的字不會搶眼，質感來自邊緣高光與厚度 */
++  --lg-fill: rgba(30, 32, 38, 0.30);
++  --lg-fill-top: rgba(255, 255, 255, 0.065);
++  --lg-hairline: rgba(255, 255, 255, 0.11);     /* 0.5px 外框 */
++  --lg-shadow: 0 14px 40px -12px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.22);
++  --lg-glow: rgba(255, 255, 255, 0.16);         /* 觸控光暈 */
++  --lg-sat: 1.5;
++  --lg-bright: 0.9;
++  --lg-spec: 0.62;                              /* 曲面高光強度（引擎讀這個值產生高光） */
++  --lg-frost: 3.2;                              /* 玻璃內的霧化（px，引擎讀這個值） */
++  /* 彈簧：iOS 預設 response 0.5、dampingFraction 0.75 的近似 */
++  --lg-spring: linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1);
++  --lg-bounce: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077 20.4%, 1.121, 1.149 24.3%, 1.159, 1.163 27%, 1.154, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1);
++}
++
++/* 淺色模式：清透的白玻璃——底色很淡，靠模糊、提高飽和與亮度、強曲面高光撐出質感 */
++[data-theme='light'] {
++  --lg-fill: rgba(255, 255, 255, 0.14);
++  --lg-fill-top: rgba(255, 255, 255, 0.4);
++  --lg-hairline: rgba(0, 0, 0, 0.06);
++  --lg-shadow: 0 12px 36px -12px rgba(20, 30, 70, 0.22), 0 1px 2px rgba(20, 30, 70, 0.06);
++  --lg-glow: rgba(255, 255, 255, 0.7);
++  --lg-sat: 2.1;
++  --lg-bright: 1.1;
++  --lg-spec: 0.9;
++  --lg-frost: 2.2;
++}
++
++/* 零權重：元件自己的 absolute / sticky / fixed 一定優先 */
++:where(.lg) { position: relative; }
++
++.lg {
++  isolation: isolate;
++  border-radius: var(--lg-radius);
++  background: linear-gradient(180deg, var(--lg-fill-top), transparent 60%), var(--lg-fill);
++  -webkit-backdrop-filter: blur(24px) saturate(160%) brightness(0.9);
++  backdrop-filter: blur(24px) saturate(160%) brightness(0.9);
++  /* 厚度：上緣受光、下緣透光（光線穿過玻璃後在底部聚集），比單一細線更立體 */
++  box-shadow:
++    inset 0 0 0 0.5px var(--lg-hairline),
++    inset 0 1px 0 rgba(255, 255, 255, 0.13),
++    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
++    inset 0 -14px 22px -16px rgba(255, 255, 255, 0.09),
++    var(--lg-shadow);
++  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
++  -webkit-font-smoothing: antialiased;
++}
++
++[data-theme='light'] .lg {
++  -webkit-backdrop-filter: blur(18px) saturate(210%) brightness(1.1);
++  backdrop-filter: blur(18px) saturate(210%) brightness(1.1);
++  box-shadow:
++    inset 0 0 0 0.5px var(--lg-hairline),
++    inset 0 1px 0.5px rgba(255, 255, 255, 0.9),
++    inset 0 -1px 0.5px rgba(255, 255, 255, 0.35),
++    var(--lg-shadow);
++  text-shadow: none;
++}
++
++/* Chromium：折射 + 曲面高光由 SVG 濾鏡提供 */
++.lg-refraction .lg[style*="--lg-filter"] { backdrop-filter: var(--lg-filter); }
++.lg-refraction .lg[style*="--lg-filter"].lg-morphing { backdrop-filter: blur(16px) saturate(180%) brightness(0.92); }
++
++/* 非 Chromium：用柔和的上緣反光代替曲面高光 */
++.lg-fallback .lg::before {
++  content: "";
++  position: absolute; inset: 0; z-index: -1;
++  border-radius: inherit; pointer-events: none;
++  background:
++    radial-gradient(90% 60% at 20% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
++    radial-gradient(60% 50% at 85% 100%, rgba(255, 255, 255, 0.06), transparent 70%);
++}
++
++/* 觸控光暈：從手指位置擴散 */
++.lg::after {
++  content: "";
++  position: absolute; inset: 0; z-index: -1;
++  border-radius: inherit; pointer-events: none;
++  background: radial-gradient(circle at var(--lg-px, 50%) var(--lg-py, 50%), var(--lg-glow), transparent 70%);
++  background-size: 100% 100%;
++  opacity: 0;
++  transition: opacity 0.45s ease;
++}
++
++/* ---------- 交互 ---------- */
++.lg-press { cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform 0.55s var(--lg-spring), box-shadow 0.3s ease; }
++@media (hover: hover) { .lg-press:hover::after { opacity: 0.35; } }
++.lg-press:active::after { opacity: 1; transition-duration: 0.12s; }
++.lg-press:active {
++  transform: scale(1.07);                       /* iOS 26：按下時玻璃鼓起，放開彈回 */
++  transition-duration: 0.22s;
++  transition-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.2);
++}
++.lg-press:focus-visible { outline: 2px solid rgba(10, 132, 255, 0.9); outline-offset: 3px; }
++
++/* 有色玻璃 */
++.lg-tint {
++  --lg-fill-top: color-mix(in srgb, var(--lg-tint-color) 62%, transparent);
++  --lg-fill: color-mix(in srgb, var(--lg-tint-color) 48%, transparent);
++  --lg-glow: rgba(255, 255, 255, 0.32);
++}
++
++.lg[aria-disabled="true"], .lg:disabled { opacity: 0.4; pointer-events: none; }
++
++/* ---------- 無障礙 ---------- */
++@media (prefers-reduced-motion: reduce) {
++  .lg, .lg-press:active { transition: none; transform: none; }
++}
++@media (prefers-reduced-transparency: reduce) {
++  .lg, .lg-refraction .lg[style*="--lg-filter"] { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgb(var(--c-gray-700, 44 44 46)); }
++}
+diff --git a/resources/scripts/system-theme/liquid-glass.d.ts b/resources/scripts/system-theme/liquid-glass.d.ts
+new file mode 100644
+index 0000000..2a05466
+--- /dev/null
++++ b/resources/scripts/system-theme/liquid-glass.d.ts
+@@ -0,0 +1,15 @@
++/** 液態玻璃引擎（liquid-glass.js）的型別。引擎在載入時自動掛到 window.LiquidGlass。 */
++export {};
++
++declare global {
++    interface Window {
++        LiquidGlass?: {
++            supported: boolean;
++            watch: (selector: string) => void;
++            attach: (el: HTMLElement) => void;
++            detach: (el: HTMLElement) => void;
++            refresh: (el?: HTMLElement) => void;
++            morph: (el: HTMLElement, change: () => void, ms?: number) => void;
++        };
++    }
++}
+diff --git a/resources/scripts/system-theme/liquid-glass.js b/resources/scripts/system-theme/liquid-glass.js
+new file mode 100644
+index 0000000..527a4c3
+--- /dev/null
++++ b/resources/scripts/system-theme/liquid-glass.js
+@@ -0,0 +1,712 @@
++/*!
++ * Liquid Glass v2 — 曲面折射 + 曲面鏡面高光 + 觸控光暈
++ * 用法：元素加 class="lg"（材質）與 data-glass（啟用折射）。
++ * Chromium（Chrome / Edge）完整效果；Safari / Firefox 自動退回模糊材質。
++ *
++ * data 屬性（皆可省略）：
++ *   data-glass-bezel     玻璃厚邊寬度 px（預設：短邊的 32%，最多 28）
++ *   data-glass-strength  折射強度 0–1（預設 0.9，會自動限制避免影像摺疊）
++ *   data-glass-blur      玻璃內的模糊 px（預設 1.2）
++ *   data-glass-spec      鏡面高光強度 0–1（預設 0.55）
++ */
++(function (global) {
++  'use strict';
++
++  var NS = 'http://www.w3.org/2000/svg';
++  var ua = navigator.userAgent;
++  var isChromium = /Chrome\/|Chromium\/|Edg\//.test(ua) && !/Firefox\//.test(ua);
++  var SUPPORTED = isChromium && CSS.supports('backdrop-filter', 'url(#x)');
++  var reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
++
++  /* 光源：左上方（與 iOS 相同的固定光） */
++  var LX = -0.55, LY = -0.83;
++
++  var svg = null, seq = 0;
++  var filters = new Map();      // key -> { id, node, refs }
++  var tracked = new Map();      // element -> key
++  var selectors = ['[data-glass]'];
++
++  function ensureSvg() {
++    if (svg) return svg;
++    svg = document.createElementNS(NS, 'svg');
++    svg.setAttribute('aria-hidden', 'true');
++    svg.setAttribute('width', '0');
++    svg.setAttribute('height', '0');
++    svg.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;';
++    document.body.appendChild(svg);
++    return svg;
++  }
++
++  /* 只在狀態真的改變時才寫入 class：classList.add/remove/toggle 即使沒變也會觸發 MutationObserver，
++     引擎自己又在監聽，會形成每一幀都重畫的迴圈 */
++  function cls(el, name, on) {
++    if (el.classList.contains(name) !== !!on) el.classList.toggle(name, !!on);
++  }
++  function prop(el, name, value) {
++    if (el.style.getPropertyValue(name) !== value) el.style.setProperty(name, value);
++  }
++
++  function attrNum(el, name, fallback) {
++    var v = parseFloat(el.getAttribute('data-glass-' + name));
++    return isFinite(v) ? v : fallback;
++  }
++
++  /* 折射曲線：x = 0（最外緣）到 1（厚邊內側），值 = 位移比例 */
++  function profile(x) { var u = 1 - x; return u * u * Math.sqrt(u); }      // (1-x)^2.5
++  var MAX_SLOPE = 2.5;                                                     // profile 在 x=0 的斜率
++
++  /* 依元素尺寸產生兩張圖：位移圖（R,G = 方向）與鏡面圖（白光，alpha = 亮度） */
++  function buildMaps(w, h, radius, bezel, spec, lens) {
++    /* 依螢幕倍率產生，長邊最多 2400px：低解析度貼圖放大是邊緣鋸齒的主因 */
++    var dpr = Math.min(2, global.devicePixelRatio || 1);
++    var k = Math.min(dpr, 2400 / Math.max(w, h));
++    var W = Math.max(2, Math.round(w * k)), H = Math.max(2, Math.round(h * k));
++    var dc = document.createElement('canvas'), sc = document.createElement('canvas');
++    dc.width = sc.width = W; dc.height = sc.height = H;
++    var dctx = dc.getContext('2d'), sctx = sc.getContext('2d');
++    var di = dctx.createImageData(W, H), si = sctx.createImageData(W, H);
++    var D = di.data, S = si.data;
++    var hw = w / 2, hh = h / 2, r = Math.min(radius, hw, hh);
++
++    for (var y = 0; y < H; y++) {
++      var py = (y + 0.5) / H * h - hh, sy = py < 0 ? -1 : 1, qy = Math.abs(py) - (hh - r);
++      for (var x = 0; x < W; x++) {
++        var px = (x + 0.5) / W * w - hw, sx = px < 0 ? -1 : 1, qx = Math.abs(px) - (hw - r);
++        var dist, nx, ny;
++        if (qx > 0 && qy > 0) {
++          var L = Math.sqrt(qx * qx + qy * qy) || 1e-6;
++          dist = r - L; nx = qx / L * sx; ny = qy / L * sy;
++        } else if (qx > qy) { dist = r - qx; nx = sx; ny = 0; }
++        else { dist = r - qy; nx = 0; ny = sy; }
++
++        var i = (y * W + x) * 4, m = 0, a = 0;
++        if (dist >= 0 && dist < bezel) {
++          var t = dist / bezel;
++          m = profile(t);
++          /* 鏡面：外緣一條細亮線 + 往內漸淡的寬光，強度取決於法線是否朝向光源 */
++          var facing = nx * LX + ny * LY;                                  // 1 = 正對光源
++          var lit = facing > 0 ? Math.pow(facing, 1.5) : 0.38 * Math.pow(-facing, 2);   // 背光側有較弱的反射
++          var rim = Math.exp(-dist / 1.4);                                 // 約 1.5 CSS px 的亮線
++          var sheen = Math.pow(1 - t, 3) * 0.45;                           // 曲面上的寬光
++          var cover = Math.min(1, dist * k + 0.5);                         // 最外圈像素的覆蓋率：抗鋸齒
++          a = Math.min(1, (rim * 0.85 + sheen) * lit * spec) * cover;
++        }
++        if (lens && dist >= 0) {
++          /* 透鏡：整片往中心取樣（放大 lens.mag 倍）＋邊緣再往內折 */
++          var half = lens.S / 2;
++          var ox = (-px * (1 - 1 / lens.mag) - nx * m * lens.eo) / half;
++          var oy = (-py * (1 - 1 / lens.mag) - ny * m * lens.eo) / half;
++          D[i] = 128 + Math.max(-1, Math.min(1, ox)) * 127;
++          D[i + 1] = 128 + Math.max(-1, Math.min(1, oy)) * 127;
++        } else {
++          D[i] = 128 - nx * m * 127; D[i + 1] = 128 - ny * m * 127;
++        }
++        D[i + 2] = 128; D[i + 3] = 255;
++        S[i] = S[i + 1] = S[i + 2] = 255; S[i + 3] = Math.round(a * 255);
++      }
++    }
++    dctx.putImageData(di, 0, 0); sctx.putImageData(si, 0, 0);
++    return { disp: dc.toDataURL(), spec: sc.toDataURL() };
++  }
++
++  function mk(tag, attrs, parent) {
++    var n = document.createElementNS(NS, tag);
++    for (var k in attrs) n.setAttribute(k, attrs[k]);
++    if (parent) parent.appendChild(n);
++    return n;
++  }
++
++  function makeFilter(key, w, h, o) {
++    var id = 'lg' + (++seq);
++    var maps = buildMaps(w, h, o.radius, o.bezel, o.spec, o.lens);
++    var f = mk('filter', {
++      id: id, x: '0', y: '0', width: w, height: h,
++      filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse',
++      'color-interpolation-filters': 'sRGB'
++    }, ensureSvg());
++    mk('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: o.blur, edgeMode: 'duplicate', result: 'b' }, f);
++    mk('feImage', { href: maps.disp, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'd' }, f);
++    mk('feDisplacementMap', { in: 'b', in2: 'd', scale: o.scale, xChannelSelector: 'R', yChannelSelector: 'G', result: 'r' }, f);
++    mk('feImage', { href: maps.spec, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 's' }, f);
++    mk('feComposite', { in: 's', in2: 'r', operator: 'over' }, f);
++    var rec = { id: id, node: f, refs: 0 };
++    filters.set(key, rec);
++    return rec;
++  }
++
++  /* ---------- 內容折射：玻璃列「自己的」文字和圖示，靠近左右圓弧時被玻璃邊緣折彎 ----------
++   * 只做水平方向、只作用在兩端的圓弧；中間區域位移為 0，文字保持清晰。
++   * 位移圖依整條玻璃列產生，每個子元素用自己的偏移對齊同一張圖。 */
++  var contentMaps = new Map();       // key -> { url, ready }
++  var contentFilters = new Map();    // key -> { id, node, refs }
++  function contentMap(w, h, radius, bezel, exp) {
++    var key = [w, h, radius, bezel, exp].join('|');
++    if (contentMaps.has(key)) return contentMaps.get(key);
++    var dpr = Math.min(2, global.devicePixelRatio || 1);
++    var k = Math.min(dpr, 2400 / Math.max(w, h));
++    var W = Math.max(2, Math.round(w * k)), H = Math.max(2, Math.round(h * k));
++    var c = document.createElement('canvas'); c.width = W; c.height = H;
++    var ctx = c.getContext('2d'), img = ctx.createImageData(W, H), D = img.data;
++    var hw = w / 2, hh = h / 2, rr = Math.min(radius, hw, hh);
++    for (var y = 0; y < H; y++) {
++      var py = (y + 0.5) / H * h - hh, dy = Math.max(0, Math.abs(py) - (hh - rr));
++      var xEdge = hw - rr + Math.sqrt(Math.max(0, rr * rr - dy * dy));    // 這一列玻璃左右邊界（跟著圓弧走）
++      for (var x = 0; x < W; x++) {
++        var px = (x + 0.5) / W * w - hw, dist = xEdge - Math.abs(px), m = 0;
++        if (dist >= 0 && dist < bezel) m = Math.pow(1 - dist / bezel, exp);
++        var i = (y * W + x) * 4;
++        D[i] = 128 - (px < 0 ? -1 : 1) * m * 127;                            // 往內取樣：邊緣的字被拉伸、彎曲
++        D[i + 1] = 128; D[i + 2] = 128; D[i + 3] = 255;
++      }
++    }
++    ctx.putImageData(img, 0, 0);
++    var rec = { url: c.toDataURL() };
++    rec.ready = new Promise(function (res) { var im = new Image(); im.onload = im.onerror = function () { res(); }; im.src = rec.url; });
++    contentMaps.set(key, rec);
++    return rec;
++  }
++  function updateContent(bar, w, h, radius) {
++    var strength = parseFloat(getComputedStyle(bar).getPropertyValue('--lg-content')) || 0;
++    var kids = Array.prototype.filter.call(bar.children, function (c) { return !c.classList.contains('sys-lens'); });
++    kids.forEach(function (kid) {
++      var prev = kid.__lgContent;
++      /* 一般解析度螢幕（倍率 < 1.5）不做：濾鏡會讓整條列的字失去次像素反鋸齒（ClearType），變軟 */
++      if (!strength || !SUPPORTED || reduceMotion.matches || (global.devicePixelRatio || 1) < 1.5) {
++        if (prev) { prop(kid, 'filter', ''); releaseContent(prev); kid.__lgContent = null; }
++        return;
++      }
++      var bezel = Math.round(Math.min(Math.min(w, h) * 0.7, 40)), exp = 1.6;
++      /* 不摺疊的上限：位移的斜率 < 1；strength 0–1 再乘上去 */
++      var S = +(strength * 2 * bezel / exp).toFixed(2);
++      var ox = kid.offsetLeft, oy = kid.offsetTop, cw = kid.offsetWidth, ch = kid.offsetHeight;
++      if (cw < 4 || ch < 4) return;
++      var key = [w, h, radius, bezel, exp, S, ox, oy, cw, ch].join('|');
++      if (prev === key) return;
++      var map = contentMap(w, h, radius, bezel, exp);
++      var rec = contentFilters.get(key);
++      if (!rec) {
++        var id = 'lgc' + (++seq);
++        /* 濾鏡範圍往左右各多留一段：被推向邊緣的字可以畫到元素外面，不會被切掉 */
++        var pad = Math.ceil(S / 2) + 4;
++        var f = mk('filter', { id: id, x: -pad, y: 0, width: cw + pad * 2, height: ch, filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, ensureSvg());
++        mk('feImage', { href: map.url, x: -ox, y: -oy, width: w, height: h, preserveAspectRatio: 'none', result: 'm' }, f);
++        mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'm', scale: S, xChannelSelector: 'R', yChannelSelector: 'G' }, f);
++        rec = { id: id, node: f, refs: 0 };
++        contentFilters.set(key, rec);
++      }
++      rec.refs++;
++      if (prev) releaseContent(prev);
++      kid.__lgContent = key;
++      /* 位移圖解碼完成才套上，否則載入中的空白圖會讓文字整個偏移一下 */
++      map.ready.then(function () { if (kid.__lgContent === key) prop(kid, 'filter', 'url(#' + rec.id + ')'); });
++    });
++  }
++  function releaseContent(key) {
++    var rec = contentFilters.get(key);
++    if (rec && --rec.refs <= 0) { rec.node.remove(); contentFilters.delete(key); }
++  }
++
++  function release(key) {
++    var rec = filters.get(key);
++    if (rec && --rec.refs <= 0) { rec.node.remove(); filters.delete(key); }
++  }
++
++  function update(node) {
++    if (node.classList.contains('lg-morphing')) return;                  // 變形動畫中先用模糊，結束再算
++    var w = node.offsetWidth, h = node.offsetHeight;                       // 不含 transform，縮放動畫不會重算
++    if (w < 8 || h < 8) return;
++    var radius = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0;
++    /* 厚邊寬度與折射強度：元素屬性 → CSS 變數 --lg-bezel / --lg-strength → 預設 */
++    var cs = getComputedStyle(node);
++    var bezel = attrNum(node, 'bezel', parseFloat(cs.getPropertyValue('--lg-bezel')) || Math.min(28, Math.min(w, h) * 0.32));
++    bezel = Math.max(4, Math.min(bezel, Math.min(w, h) * 0.45));
++    var strength = Math.max(0, Math.min(1, attrNum(node, 'strength', parseFloat(cs.getPropertyValue('--lg-strength')) || 0.9)));
++    /* 位移量 = scale × 0.5 × profile；斜率 < 0.85 才不會摺疊出雜訊 */
++    var scale = strength * 0.85 * bezel / (0.5 * MAX_SLOPE);
++    var o = {
++      radius: radius, bezel: Math.round(bezel), scale: +scale.toFixed(2),
++      /* 霧化程度：元素屬性優先，否則讀 CSS 變數 --lg-frost（深色 / 淺色各自設定） */
++      blur: attrNum(node, 'blur', parseFloat(getComputedStyle(node).getPropertyValue('--lg-frost')) || 1.2),
++      /* 高光強度：元素屬性優先，否則讀 CSS 變數 --lg-spec（深色 / 淺色各自設定） */
++      spec: Math.max(0, Math.min(1, attrNum(node, 'spec', parseFloat(getComputedStyle(node).getPropertyValue('--lg-spec')) || 0.55)))
++    };
++    /* data-glass-magnify > 1：透鏡（放大 + 邊緣折射），用於選取膠囊移動時 */
++    var mag = attrNum(node, 'magnify', 1);
++    if (mag > 1) {
++      var eo = strength * 0.85 * bezel / MAX_SLOPE;
++      var S = 2 * (Math.max(w, h) / 2 * (1 - 1 / mag) + eo);
++      o.scale = +S.toFixed(2);
++      o.lens = { mag: mag, eo: eo, S: S };
++    }
++    var key = [w, h, radius, o.bezel, o.scale, o.blur, o.spec, mag].join('|');
++    if (tracked.get(node) === key) { if (node.classList.contains('sys-bar')) updateContent(node, w, h, radius); return; }
++    var rec = filters.get(key) || makeFilter(key, w, h, o);
++    rec.refs++;
++    if (tracked.has(node)) release(tracked.get(node));
++    tracked.set(node, key);
++    prop(node, '--lg-filter', 'url(#' + rec.id + ') saturate(var(--lg-sat, 1.65)) brightness(var(--lg-bright, 1))');
++    cls(node, 'lg-live', true);
++    if (node.classList.contains('sys-bar')) updateContent(node, w, h, radius);
++  }
++
++  var pending = new Set(), raf = 0;
++  function schedule(node) { pending.add(node); if (!raf) raf = requestAnimationFrame(flush); }
++  function flush() {
++    raf = 0;
++    pending.forEach(function (n) { if (n.isConnected) update(n); });
++    pending.clear();
++  }
++  var ro = typeof ResizeObserver !== 'undefined'
++    ? new ResizeObserver(function (es) { es.forEach(function (e) { schedule(e.target); }); }) : null;
++
++  /* 觸控光暈：按下時，光從手指位置在玻璃裡擴散 */
++  function glow(e) {
++    var n = e.currentTarget, r = n.getBoundingClientRect();
++    n.style.setProperty('--lg-px', (e.clientX - r.left) + 'px');
++    n.style.setProperty('--lg-py', (e.clientY - r.top) + 'px');
++  }
++
++  function attach(node) {
++    if (node.__lg) return;
++    node.__lg = true;
++    cls(node, 'lg', true);
++    node.addEventListener('pointerdown', glow, { passive: true });
++    node.addEventListener('pointermove', glow, { passive: true });
++    if (SUPPORTED && node.hasAttribute('data-glass')) { if (ro) ro.observe(node); schedule(node); }
++  }
++  function detach(node) {
++    node.__lg = false;
++    if (ro) ro.unobserve(node);
++    if (tracked.has(node)) { release(tracked.get(node)); tracked.delete(node); }
++  }
++
++  function scan(root) {
++    if (!root.querySelectorAll) return;
++    var sel = selectors.join(',');
++    if (root.matches && root.matches(sel)) attach(root);
++    if (root.firstElementChild) root.querySelectorAll(sel).forEach(attach);
++    if ((root.matches && root.matches(barSel)) || (root.querySelector && root.querySelector(barSel))) { indicators(); edges(); }
++    /* 新出現的玻璃列 / 浮動列（例如勾選檔案後的操作列）：立刻判斷下方背景明暗 */
++    if ((root.matches && root.matches(adaptSel)) || (root.querySelector && root.querySelector(adaptSel))) adapt();
++  }
++
++  /* ---------- 選取膠囊：導覽列 / 分頁列裡的 .active 項目，膠囊用彈簧滑過去 ----------
++   * 不插入任何節點（避免和 React 衝突），只在「選項的父層」設定 CSS 變數，
++   * 由 CSS 的 ::before 畫出膠囊。 */
++  var barSel = '.sys-bar';
++  var indRaf = 0;
++  /* ---------- 透鏡：選取膠囊移動時，變成一片放大鏡滑過去（iOS 26 分頁列） ----------
++   * 做法和 iOS 一樣：透鏡裡放一份玻璃列內容的「副本」，用 transform 以矢量放大，字永遠清晰；
++   * 透鏡邊緣再用一張很小的位移圖把放大的字彎進去。移動時只改 transform，不重跑背景濾鏡。 */
++  var MAG = 1.28;                                   // 放大倍率
++  /* 結構：lens（只平移，獨立圖層，移動不掉幀）→ pill（玻璃外觀，鼓起的縮放在這層，每幀重畫所以字清晰）
++   *       → ink（裁成膠囊形 + 邊緣彎曲濾鏡）→ 副本 */
++  var lens = null, lensPill = null, lensView = null, lensRun = null, lensRaf = 0;
++  function ensureLens() {
++    if (lens) return lens;
++    lens = document.createElement('div');
++    lens.className = 'sys-lens';
++    lens.setAttribute('aria-hidden', 'true');
++    lensPill = document.createElement('div');
++    lensPill.className = 'sys-lens-view';
++    lensView = document.createElement('div');
++    lensView.className = 'sys-lens-ink';
++    lensPill.appendChild(lensView);
++    lens.appendChild(lensPill);
++    document.body.appendChild(lens);
++    return lens;
++  }
++  function lensSize(tab) { return { w: Math.round(tab.offsetWidth + 10), h: Math.round(tab.offsetHeight + 10) }; }
++
++  /* 透鏡邊緣的彎曲：沿用內容折射的位移圖（只在左右圓弧），大小 = 透鏡 */
++  function lensEdgeFilter(w, h) {
++    var bezel = Math.round(Math.min(h * 0.6, 30)), exp = 1.6;
++    var S = +(0.55 * 2 * bezel / exp).toFixed(2);
++    var key = 'lens|' + [w, h, bezel, S].join('|');
++    var rec = contentFilters.get(key);
++    var map = contentMap(w, h, h / 2, bezel, exp);
++    if (!rec) {
++      var id = 'lgl' + (++seq), pad = Math.ceil(S / 2) + 4;
++      var f = mk('filter', { id: id, x: -pad, y: 0, width: w + pad * 2, height: h, filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, ensureSvg());
++      mk('feImage', { href: map.url, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'm' }, f);
++      mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'm', scale: S, xChannelSelector: 'R', yChannelSelector: 'G' }, f);
++      rec = { id: id, node: f, refs: 1, map: map };
++      contentFilters.set(key, rec);
++    }
++    return rec;
++  }
++  /* 預熱：分頁列出現後，閒置時把每個分頁尺寸的透鏡邊緣圖先建好 */
++  function warmLens(host) {
++    if (!SUPPORTED || reduceMotion.matches || host.__lgWarm) return;
++    host.__lgWarm = true;
++    var idle = global.requestIdleCallback || function (fn) { return setTimeout(fn, 150); };
++    idle(function () {
++      if (!host.isConnected) return;
++      host.querySelectorAll('a, button, [aria-selected]').forEach(function (tab) {
++        if (!tab.offsetWidth) return;
++        var sz = lensSize(tab);
++        lensEdgeFilter(sz.w, sz.h);
++      });
++    }, { timeout: 1500 });
++  }
++
++  /* 玻璃列的副本：保留元件自己的 class（樣式才對），拿掉玻璃、濾鏡、遮罩和選取膠囊 */
++  var STRIP = ['lg', 'sys-bar', 'lg-live', 'lg-over-dark', 'lg-ind', 'lg-ind-still', 'lg-ind-traveling', 'lg-ind-land'];
++  function cloneBar(bar, host) {
++    var c = bar.cloneNode(true);
++    var all = [c].concat(Array.prototype.slice.call(c.querySelectorAll('*')));
++    all.forEach(function (el) {
++      STRIP.forEach(function (k) { if (el.classList) el.classList.remove(k); });
++      el.removeAttribute('id');
++      el.removeAttribute('data-glass');
++      el.removeAttribute('data-lg-scroll');
++      if (el.style) { el.style.filter = ''; el.style.maskImage = ''; el.style.webkitMaskImage = ''; }
++      if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
++    });
++    c.classList.add('sys-lens-clone');
++    c.removeAttribute('style');
++    var br = bar.getBoundingClientRect();
++    c.style.cssText = 'position:absolute;left:0;top:0;margin:0;width:' + br.width + 'px;height:' + br.height + 'px;transform-origin:0 0;';
++    /* 找到副本裡對應 host 的那一層，之後同步它的捲動位置 */
++    var path = [], n = host;
++    while (n && n !== bar) { path.unshift(Array.prototype.indexOf.call(n.parentElement.children, n)); n = n.parentElement; }
++    var cHost = c;
++    path.forEach(function (i) { cHost = cHost.children[i]; });
++    return { el: c, host: cHost, rect: br };
++  }
++
++  function travel(host, from, to, pressed) {
++    var b0 = host.closest && host.closest(barSel);
++    var why = !SUPPORTED ? 'not-supported' : reduceMotion.matches ? 'reduced-motion' : !to ? 'no-target' : null;
++    if (b0) b0.__lgTravel = { at: Math.round(performance.now()), result: why || 'started', from: pressed ? 'press/prev' : from && from.isConnected ? 'old-active' : host.__lgLast ? 'last-position' : 'none' };
++    if (why) return false;
++    var bar = host.closest(barSel);
++    if (!bar) return false;
++    /* 起點的優先順序：按下分頁那一刻記下的位置 → 舊的選取項目 → 上次畫膠囊的位置 */
++    var hr = host.getBoundingClientRect(), sx, sw;
++    if (pressed) {
++      sx = pressed.left + pressed.width / 2; sw = pressed.width;
++    } else if (from && from.isConnected && from.getBoundingClientRect().width) {
++      var a = from.getBoundingClientRect(); sx = a.left + a.width / 2; sw = a.width;
++    } else if (host.__lgLast) {
++      sx = hr.left + host.__lgLast.left - host.scrollLeft + host.__lgLast.width / 2; sw = host.__lgLast.width;
++    } else {
++      if (b0) b0.__lgTravel.result = 'no-start-position';
++      return false;
++    }
++    var el = ensureLens();
++    var sz = lensSize(to);
++    el.style.width = sz.w + 'px'; el.style.height = sz.h + 'px';
++    var edge = lensEdgeFilter(sz.w, sz.h);
++    lensView.style.filter = '';
++    edge.map.ready.then(function () { if (lensRun && lensRun.edge === edge) lensView.style.filter = 'url(#' + edge.id + ')'; });
++
++    var clone = cloneBar(bar, host);
++    lensView.textContent = '';
++    lensView.appendChild(clone.el);
++    clone.host.scrollLeft = host.scrollLeft;
++
++    var keep = lensRun && lensRun.st;
++    var st = keep || { x: sx, w: sw, vx: 0, vw: 0, m: 1, vm: 0, s: 1, vs: 0, jelly: 0 };
++    st.last = performance.now();
++    st.phase = 'go';
++    if (lensRun && lensRun.host !== host) lensRun.host.classList.remove('lg-ind-traveling');
++    var tr = to.getBoundingClientRect();
++    lensRun = { st: st, host: host, to: to, bar: bar, clone: clone, edge: edge, sz: sz, ty: tr.top + tr.height / 2, t0: performance.now() };
++    clearTimeout(el.__fade);
++    host.classList.add('lg-ind-traveling');
++    el.classList.add('on');
++    if (!lensRaf) lensRaf = requestAnimationFrame(stepLens);
++    return true;
++  }
++
++  /* 臨界阻尼附近的彈簧，依實際經過時間計算，任何幀率手感一致 */
++  function spring(st, key, vkey, target, K, zeta, dt) {
++    var C = 2 * Math.sqrt(K) * zeta, n = Math.ceil(dt / 0.004), h = dt / n;
++    for (var i = 0; i < n; i++) { st[vkey] += (-K * (st[key] - target) - C * st[vkey]) * h; st[key] += st[vkey] * h; }
++  }
++
++  function stepLens(now) {
++    lensRaf = 0;
++    var run = lensRun; if (!run) return;
++    var st = run.st, el = lens;
++    var b = run.to.getBoundingClientRect();
++    var tx = b.left + b.width / 2;
++    var dt = Math.min(0.05, Math.max(0.001, (now - st.last) / 1000)); st.last = now;
++
++    /* 位置與寬度：剛度 230、阻尼比 0.86，略有過衝但不晃 */
++    spring(st, 'x', 'vx', tx, 230, 0.86, dt);
++    spring(st, 'w', 'vw', b.width, 230, 0.9, dt);
++    var near = Math.abs(tx - st.x) < 6 && Math.abs(st.vx) < 120;
++    if (st.phase === 'go' && near) st.phase = 'land';
++    /* 放大倍率與透鏡大小：出發時鼓起，抵達時縮回 1 倍（和底下的字完全重合），交接才不會跳 */
++    var lifted = st.phase === 'go';
++    spring(st, 'm', 'vm', lifted ? MAG : 1, 320, 0.95, dt);
++    spring(st, 's', 'vs', lifted ? 1.1 : 1, 320, 0.8, dt);
++
++    /* 水滴感：減速時沿著移動方向壓扁（依加速度，平滑處理） */
++    var acc = (st.vx - (st.pvx || 0)) / dt; st.pvx = st.vx;
++    var along = st.vx === 0 ? 0 : -acc * (st.vx > 0 ? 1 : -1);
++    st.jelly = st.jelly * 0.8 + Math.max(-0.08, Math.min(0.08, along / 90000)) * 0.2;
++    if (!lifted) st.jelly *= 0.6;
++
++    var lw = run.sz.w, lh = run.sz.h;
++    var lx = st.x - lw / 2, ly = run.ty - lh / 2;
++    var sx = ((st.w + 10) / lw) * (st.s + st.jelly), sy = st.s - st.jelly * 0.6;
++    el.style.transform = 'translate3d(' + lx.toFixed(2) + 'px,' + ly.toFixed(2) + 'px,0)';
++    lensPill.style.transform = 'scale(' + sx.toFixed(4) + ',' + sy.toFixed(4) + ')';
++
++    /* 副本：讓透鏡中心底下那一點正好出現在透鏡中心，再以中心放大 m 倍 */
++    var cx = lw / 2, cy = lh / 2, br = run.clone.rect;
++    run.clone.el.style.transform = 'translate(' + cx + 'px,' + cy + 'px) scale(' + st.m.toFixed(4) + ') translate(' +
++      (br.left - lx - cx).toFixed(2) + 'px,' + (br.top - ly - cy).toFixed(2) + 'px)';
++
++    var done = st.phase === 'land' && Math.abs(tx - st.x) < 0.3 && Math.abs(st.vx) < 4 &&
++      Math.abs(st.m - 1) < 0.004 && Math.abs(st.s - 1) < 0.004 && Math.abs(b.width - st.w) < 0.3;
++    if (!done && now - run.t0 < 2000) { lensRaf = requestAnimationFrame(stepLens); return; }
++
++    /* 交接：透鏡已經和膠囊同大小、同位置、字也是 1 倍，兩者交叉淡換 */
++    run.host.classList.remove('lg-ind-traveling');
++    el.classList.remove('on');
++    el.__fade = setTimeout(function () { if (!lensRun) { lensView.textContent = ''; lensView.style.filter = ''; } }, 300);
++    lensRun = null;
++  }
++
++  /* 記在引擎裡（不記在元素上）的位置：React 切頁時可能把整條列換成新元素，元素上的記錄會跟著消失。
++   * rows：每一條列（以畫面上的高度位置辨識）上次選取膠囊的位置；press / prev：最近一次按下 / 取消選取的位置 */
++  var rows = [], lastPress = null, lastPrev = null;
++  function sameRow(a, top) { return a && Math.abs(a.top - top) < 12; }
++  function rowGet(top) { for (var i = 0; i < rows.length; i++) if (sameRow(rows[i], top)) return rows[i]; return null; }
++  function rowSet(top, rect) {
++    var row = rowGet(top);
++    if (!row) { row = {}; rows.push(row); if (rows.length > 8) rows.shift(); }
++    row.top = top; row.left = rect.left; row.width = rect.width;
++  }
++
++  function paintIndicators() {
++    indRaf = 0;
++    document.querySelectorAll(barSel).forEach(function (bar) {
++      var act = bar.querySelector('a.active, [aria-current="page"], [aria-selected="true"]');
++      bar.querySelectorAll('.lg-ind').forEach(function (p) { if (!act || act.parentElement !== p) prop(p, '--ind-o', '0'); });
++      if (!act || !act.parentElement) return;
++      var host = act.parentElement;
++      var first = !host.classList.contains('lg-ind');
++      cls(host, 'lg-ind', true);
++      if (first) cls(host, 'lg-ind-still', true);                 // 第一次出現時不要從 0 滑進來
++      prop(host, '--ind-x', act.offsetLeft + 'px');
++      prop(host, '--ind-y', act.offsetTop + 'px');
++      prop(host, '--ind-w', act.offsetWidth + 'px');
++      prop(host, '--ind-h', act.offsetHeight + 'px');
++      prop(host, '--ind-o', '1');
++      /* 同一個分頁被 React 換成新的元素（href 相同，例如權限載入後重建）時，不算切換 */
++      var same = host.__lgActive && host.__lgActive !== act && !host.__lgActive.isConnected &&
++        host.__lgActive.getAttribute('href') === act.getAttribute('href');
++      if (same) host.__lgActive = act;
++      /* 選到的分頁如果在可滑動區的邊緣，平滑捲到中間（像 iOS 的分段選單） */
++      if (host.__lgActive !== act) {
++        var firstTime = !host.__lgActive && !host.__lgLast;
++        /* 剛剛在這條列上按過分頁：不管引擎之前有沒有畫過膠囊，都從按下時的位置出發 */
++        /* 起點：按下時記下的位置 → 剛被取消選取的那一顆（從 DOM 變化讀出）→ 引擎上次畫膠囊的位置 */
++        var tnow = performance.now(), btop = bar.getBoundingClientRect().top, ar = act.getBoundingClientRect();
++        var fresh = function (rec) { return rec && tnow - rec.t < 2000 && sameRow(rec, btop) ? rec.rect : null; };
++        var row = rowGet(btop);
++        var moved = row && Math.abs(row.left - ar.left) > 1 ? { left: row.left, width: row.width } : null;
++        var pressed = (bar.__lgPress && tnow - bar.__lgPress.t < 2000 ? bar.__lgPress.rect : null) ||
++          (bar.__lgPrev && tnow - bar.__lgPrev.t < 2000 ? bar.__lgPrev.rect : null) ||
++          fresh(lastPress) || fresh(lastPrev) ||
++          (firstTime ? moved : null);                                       // 整條列被換掉：用引擎記住的上次位置
++        bar.__lgPress = null; bar.__lgPrev = null;
++        if (pressed) { lastPress = null; lastPrev = null; }
++        if (pressed || !firstTime) travel(host, host.__lgActive, act, pressed);   // __lgLast 尚未更新，仍是上一個位置
++        else bar.__lgTravel = { at: Math.round(tnow), result: 'skipped', from: 'none', reason: row ? 'same-position' : 'first-paint-of-this-row' };
++        if (pressed) firstTime = false;
++        host.__lgActive = act;
++        if (host.scrollWidth > host.clientWidth + 1) {
++          var target = act.offsetLeft - (host.clientWidth - act.offsetWidth) / 2;
++          host.scrollTo({ left: Math.max(0, target), behavior: firstTime || reduceMotion.matches ? 'auto' : 'smooth' });
++        }
++      }
++      host.__lgLast = { left: act.offsetLeft, width: act.offsetWidth };
++      var rr = act.getBoundingClientRect();
++      if (rr.width) rowSet(bar.getBoundingClientRect().top, rr);
++      warmLens(host);
++      if (first) requestAnimationFrame(function () { requestAnimationFrame(function () { cls(host, 'lg-ind-still', false); }); });
++    });
++  }
++  function indicators() { if (!indRaf) indRaf = requestAnimationFrame(paintIndicators); }
++
++  /* 按下玻璃列裡的分頁時，記下「目前選取項目」的位置，當作透鏡的起點 */
++  function rememberPress(e) {
++    var item = e.target.closest && e.target.closest('.sys-bar a, .sys-bar button');
++    if (!item) return;
++    var bar = item.closest('.sys-bar');
++    var cur = bar.querySelector('a.active, [aria-current="page"], [aria-selected="true"]');
++    if (!cur || cur === item) return;
++    var r = cur.getBoundingClientRect();
++    if (r.width) {
++      bar.__lgPress = { rect: { left: r.left, width: r.width }, t: performance.now() };
++      lastPress = { rect: bar.__lgPress.rect, t: bar.__lgPress.t, top: bar.getBoundingClientRect().top };
++    }
++    indicators();
++  }
++
++  /* ---------- 自適應：淺色模式下，玻璃列浮在深色內容（例如終端機）上方時自動轉成深色玻璃 ----------
++   * 取玻璃列正下方三個點，找出最上層有實心背景的元素，依亮度決定。 */
++  var adaptSel = '.sys-bar, .sys-float';
++  var skipSel = '.sys-bar, .sys-float, .sys-sheet, .sys-menu, .sys-tip';
++  var adaptRaf = 0;
++  function luminanceAt(x, y, self) {
++    var stack = document.elementsFromPoint(x, y);
++    for (var i = 0; i < stack.length; i++) {
++      var el = stack[i];
++      if (self.contains(el) || (el.closest && el.closest(skipSel))) continue;
++      var m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g);
++      if (!m || (m.length > 3 && +m[3] < 0.5)) continue;
++      return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
++    }
++    return 1;
++  }
++  function paintAdapt() {
++    adaptRaf = 0;
++    var light = document.documentElement.getAttribute('data-theme') === 'light';
++    document.querySelectorAll(adaptSel).forEach(function (bar) {
++      if (!light) { cls(bar, 'lg-over-dark', false); return; }
++      var r = bar.getBoundingClientRect();
++      if (!r.width || r.bottom < 0 || r.top > innerHeight) return;
++      var y = r.top + r.height / 2, dark = 0;
++      /* 捲動邊緣淡出區（高度 = --sys-edge-h）裡，玻璃後面看到的是淡出的底色，不是內容 */
++      var edge = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sys-edge-h')) || 0;
++      if (document.documentElement.classList.contains('lg-scrolled') && y < edge * 0.85) { cls(bar, 'lg-over-dark', false); return; }
++      [0.15, 0.5, 0.85].forEach(function (f) { if (luminanceAt(r.left + r.width * f, y, bar) < 0.4) dark++; });
++      cls(bar, 'lg-over-dark', dark >= 2);
++    });
++  }
++  function adapt() { if (!adaptRaf) adaptRaf = requestAnimationFrame(paintAdapt); }
++
++  /* ---------- 玻璃列裡可左右滑動的內容：依捲動位置在邊緣加漸隱，取代硬切 ---------- */
++  var edgeRaf = 0;
++  function paintEdges() {
++    edgeRaf = 0;
++    document.querySelectorAll('.sys-bar, .sys-bar > *').forEach(function (el) {
++      var ox = getComputedStyle(el).overflowX;
++      if (ox !== 'auto' && ox !== 'scroll') return;
++      if (!el.__lgEdge) { el.__lgEdge = true; el.addEventListener('scroll', edges, { passive: true }); }
++      var max = el.scrollWidth - el.clientWidth;
++      var state = max <= 1 ? 'none' : el.scrollLeft <= 1 ? 'start' : el.scrollLeft >= max - 1 ? 'end' : 'middle';
++      if (el.getAttribute('data-lg-scroll') !== state) el.setAttribute('data-lg-scroll', state);
++    });
++  }
++  function edges() { if (!edgeRaf) edgeRaf = requestAnimationFrame(paintEdges); }
++
++  function start() {
++    document.documentElement.classList.add(SUPPORTED ? 'lg-refraction' : 'lg-fallback');
++    scan(document.body);
++    indicators();
++    new MutationObserver(function (list) {
++      var bars = false;
++      list.forEach(function (m) {
++        if (m.type === 'attributes') {
++          /* 只理會「選取項目」的變化（React 換 active / aria），引擎自己加的 class 不算 */
++          var t = m.target;
++          if (m.attributeName === 'hidden') { if (t.matches && (t.matches(adaptSel) || t.querySelector(adaptSel))) adapt(); return; }
++          if (t.closest && t.closest(barSel) && !(t.classList.contains('lg') || t.classList.contains('lg-ind'))) {
++            bars = true;
++            /* 從變化本身讀出「剛被取消選取的是哪一顆」：透鏡的起點不依賴引擎之前有沒有記錄過 */
++            var wasOn = m.attributeName === 'class' ? /(^|\s)active(\s|$)/.test(m.oldValue || '')
++              : m.attributeName === 'aria-current' ? m.oldValue === 'page' : m.oldValue === 'true';
++            var isOn = m.attributeName === 'class' ? t.classList.contains('active')
++              : m.attributeName === 'aria-current' ? t.getAttribute('aria-current') === 'page' : t.getAttribute('aria-selected') === 'true';
++            if (wasOn && !isOn) {
++              var pr = t.getBoundingClientRect(), pb = t.closest(barSel);
++              if (pr.width) {
++                pb.__lgPrev = { rect: { left: pr.left, width: pr.width }, t: performance.now() };
++                lastPrev = { rect: pb.__lgPrev.rect, t: pb.__lgPrev.t, top: pb.getBoundingClientRect().top };
++              }
++            }
++          }
++          return;
++        }
++        if (m.target.closest && m.target.closest('.xterm')) return;      // 終端機輸出量大，直接略過
++        if (m.addedNodes.length && m.target.closest && m.target.closest(barSel)) bars = true;
++        m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); });
++        m.removedNodes.forEach(function (n) {
++          if (n.nodeType !== 1) return;
++          if (n.__lg) detach(n);
++          if (n.querySelectorAll) n.querySelectorAll('.lg').forEach(function (c) { if (c.__lg) detach(c); });
++        });
++      });
++      if (bars) { indicators(); edges(); adapt(); }
++    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
++    addEventListener('resize', indicators, { passive: true });
++    addEventListener('resize', edges, { passive: true });
++    document.addEventListener('pointerdown', rememberPress, { capture: true, passive: true });
++    document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest(barSel); if (b && !b.__lgPress) rememberPress(e); }, { capture: true, passive: true });
++    document.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') rememberPress(e); }, { capture: true, passive: true });
++    edges();
++    /* 捲動邊緣效果：頁面離開頂端時加上 .lg-scrolled */
++    var scrolled = null;
++    function onScroll() {
++      var on = (window.scrollY || document.documentElement.scrollTop) > 4;
++      if (on !== scrolled) { scrolled = on; document.documentElement.classList.toggle('lg-scrolled', on); }
++    }
++    addEventListener('scroll', onScroll, { passive: true });
++    onScroll();
++    addEventListener('scroll', adapt, { passive: true, capture: true });
++    addEventListener('resize', adapt, { passive: true });
++    /* 深色 / 淺色切換時：高光強度不同要重算，並重新判斷背景明暗 */
++    new MutationObserver(function () { global.LiquidGlass.refresh(); adapt(); })
++      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
++    adapt();
++    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { indicators(); global.LiquidGlass.refresh(); });
++    addEventListener('load', indicators);
++  }
++
++  global.LiquidGlass = {
++    supported: SUPPORTED,
++    reducedMotion: reduceMotion,
++    /** 額外指定要變成玻璃的選擇器（不改 React 原始碼也能套用） */
++    watch: function (selector) { selectors.push(selector); if (document.body) scan(document.body); },
++    attach: attach,
++    detach: detach,
++    /** 手動重新計算選取膠囊位置（一般不需要，會自動偵測 .active 變化） */
++    indicators: indicators,
++    /** 手動重新判斷玻璃列下方背景的明暗 */
++    adapt: adapt,
++    /** 除錯：每條玻璃列目前記下的選取狀態（回報問題時在 DevTools Console 執行 LiquidGlass.debug()） */
++    debug: function () {
++      return Array.prototype.map.call(document.querySelectorAll(barSel), function (bar) {
++        var act = bar.querySelector('a.active, [aria-current="page"], [aria-selected="true"]');
++        var host = act && act.parentElement;
++        return {
++          bar: bar.className,
++          active: act ? (act.textContent || act.getAttribute('aria-label') || '').trim() : null,
++          engineActive: host && host.__lgActive ? (host.__lgActive.textContent || '').trim() : null,
++          engineActiveConnected: !!(host && host.__lgActive && host.__lgActive.isConnected),
++          lastPosition: host ? host.__lgLast || null : null,
++          recentPress: bar.__lgPress ? Math.round(performance.now() - bar.__lgPress.t) + 'ms ago' : null,
++          lastTravel: bar.__lgTravel || null,
++          lens: lens ? { exists: true, on: lens.classList.contains('on') } : { exists: false },
++          supported: SUPPORTED,
++          reducedMotion: reduceMotion.matches
++        };
++      });
++    },
++    /** 尺寸或參數改變後重算（不帶參數 = 全部） */
++    refresh: function (node) {
++      (node ? [node] : Array.from(tracked.keys())).forEach(schedule);
++    },
++    /** 變形動畫：動畫期間暫用模糊，結束後重算折射 */
++    morph: function (node, fn, ms) {
++      node.classList.add('lg-morphing');
++      fn();
++      clearTimeout(node.__lgMorph);
++      node.__lgMorph = setTimeout(function () {
++        node.classList.remove('lg-morphing');
++        schedule(node);
++      }, ms || 600);
++    }
++  };
++
++  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
++  else start();
++})(window);
+diff --git a/resources/scripts/system-theme/roles.css b/resources/scripts/system-theme/roles.css
+new file mode 100644
+index 0000000..c0e8a3e
+--- /dev/null
++++ b/resources/scripts/system-theme/roles.css
+@@ -0,0 +1,582 @@
++/*
++ * 系統主題：元件「角色」規則。
++ * 每個共用元件只標記自己的角色，外觀統一在這裡定義，不在個別頁面客製。
++ *
++ *   玻璃控制層（浮在內容上方）  .lg + 角色
++ *     sys-bar     導覽列、分頁列
++ *     sys-sheet   對話框、彈出視窗
++ *     sys-menu    下拉選單、右鍵選單
++ *     sys-tip     提示框
++ *     sys-float   浮動工具列（例如檔案多選時的操作列）
++ *
++ *   實心內容層
++ *     內容框、卡片、輸入框直接用 tokens.js 的色階（700 / 600），不需要額外 class
++ *
++ *   交互
++ *     sys-press   實心控制項的按壓回饋（按鈕、清單列）
++ */
++
++/* ---------- 模式相關的疊加色（深色 / 淺色） ---------- */
++:root {
++    --sys-hover: rgba(255, 255, 255, 0.08);
++    --sys-select: rgba(255, 255, 255, 0.14);
++    --sys-select-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.2);
++    --sys-glow: rgba(255, 255, 255, 0.12);
++}
++
++:root[data-theme='light'] {
++    --sys-hover: rgba(0, 0, 0, 0.06);
++    --sys-select: rgba(255, 255, 255, 0.92);
++    --sys-select-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
++    --sys-glow: rgba(255, 255, 255, 0.55);
++}
++
++/* ---------- 玻璃控制層 ---------- */
++.sys-bar {
++    --lg-radius: 9999px;
++    /* 液態感：兩端的厚邊更寬、折射更深；--lg-content = 列上文字在邊緣被折彎的程度（0–1） */
++    --lg-bezel: 26;
++    --lg-strength: 1;
++    --lg-content: 0.16;
++}
++
++.sys-sheet {
++    --lg-radius: 28px;
++    --lg-fill-top: rgba(44, 44, 50, 0.72);
++    --lg-fill: rgba(28, 28, 32, 0.66);
++    --lg-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.3);
++}
++
++.sys-menu {
++    z-index: 60;
++    --lg-radius: 20px;
++    --lg-fill-top: rgba(46, 46, 52, 0.7);
++    --lg-fill: rgba(30, 30, 34, 0.64);
++    --lg-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.6), 0 1px 3px rgba(0, 0, 0, 0.3);
++    padding: 6px;
++}
++
++.sys-tip {
++    z-index: 70;
++    --lg-radius: 12px;
++    --lg-fill-top: rgba(50, 50, 56, 0.78);
++    --lg-fill: rgba(34, 34, 38, 0.74);
++    --lg-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
++}
++
++.sys-float {
++    --lg-radius: 9999px;
++    --lg-fill-top: rgba(46, 46, 52, 0.6);
++    --lg-fill: rgba(30, 30, 34, 0.55);
++}
++
++/* 淺色模式的玻璃濃度：白色磨砂，陰影更輕。
++   導覽列 / 分頁列要比內容層更不透明，捲到深色內容（例如終端機）上面時字才讀得清楚 */
++[data-theme='light'] .sys-bar {
++    --lg-fill-top: rgba(255, 255, 255, 0.5);
++    --lg-fill: rgba(255, 255, 255, 0.28);
++}
++
++
++[data-theme='light'] .sys-sheet {
++    --lg-fill-top: rgba(255, 255, 255, 0.76);
++    --lg-fill: rgba(250, 250, 252, 0.64);
++    --lg-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.08);
++}
++
++[data-theme='light'] .sys-menu {
++    --lg-fill-top: rgba(255, 255, 255, 0.74);
++    --lg-fill: rgba(248, 248, 250, 0.62);
++    --lg-shadow: 0 18px 50px -12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.08);
++}
++
++[data-theme='light'] .sys-tip {
++    --lg-fill-top: rgba(255, 255, 255, 0.86);
++    --lg-fill: rgba(248, 248, 250, 0.82);
++    --lg-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.25);
++}
++
++[data-theme='light'] .sys-float {
++    --lg-fill-top: rgba(255, 255, 255, 0.56);
++    --lg-fill: rgba(248, 248, 250, 0.36);
++}
++
++/* 自適應：淺色模式下玻璃列浮在深色內容上時（liquid-glass.js 加上 .lg-over-dark），
++   像 iOS 一樣轉成深色玻璃、白色文字；色階變數由 GlobalStylesheet 換成深色那一套 */
++[data-theme='light'] .lg-over-dark {
++    --lg-fill-top: rgba(44, 44, 50, 0.5);
++    --lg-fill: rgba(28, 28, 32, 0.38);
++    --lg-hairline: rgba(255, 255, 255, 0.14);
++    --lg-bright: 0.92;
++    --sys-hover: rgba(255, 255, 255, 0.1);
++    --sys-select: rgba(255, 255, 255, 0.18);
++    --sys-select-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.22);
++    --sys-glow: rgba(255, 255, 255, 0.14);
++    box-shadow: inset 0 0 0 0.5px var(--lg-hairline), inset 0 1px 0.5px rgba(255, 255, 255, 0.2), var(--lg-shadow);
++}
++
++.sys-bar,
++.sys-float {
++    transition: color 0.3s ease;
++}
++
++/* 導覽列與分頁列裡的連結：選取狀態是一顆膠囊，不是底線 */
++.sys-bar a,
++.sys-bar button,
++.sys-bar .navigation-link {
++    border-radius: 9999px;
++    transition: background-color 0.25s ease, color 0.25s ease, transform 0.5s var(--lg-spring);
++}
++
++.sys-bar a:hover,
++.sys-bar button:hover,
++.sys-bar .navigation-link:hover {
++    background-color: var(--sys-hover);
++}
++
++.sys-bar a.active {
++    background-color: var(--sys-select);
++}
++
++.sys-bar a:active,
++.sys-bar button:active {
++    transform: scale(0.94);
++}
++
++/* 選取膠囊（liquid-glass.js 會在選項的父層設定 --ind-*），切換時用彈簧滑動 */
++.lg-ind {
++    position: relative;
++    isolation: isolate;
++}
++
++.lg-ind::before {
++    content: '';
++    position: absolute;
++    left: 0;
++    top: 0;
++    z-index: -1;
++    width: var(--ind-w, 0);
++    height: var(--ind-h, 0);
++    transform: translate(var(--ind-x, 0), var(--ind-y, 0));
++    border-radius: 9999px;
++    background: var(--sys-select);
++    box-shadow: var(--sys-select-shadow);
++    opacity: var(--ind-o, 0);
++    pointer-events: none;
++    transition: transform 0.55s var(--lg-spring), width 0.55s var(--lg-spring), height 0.55s var(--lg-spring),
++        opacity 0.2s ease;
++}
++
++.lg-ind-still::before {
++    transition: none;
++}
++
++.lg-ind > a.active,
++.lg-ind > .active {
++    background-color: transparent !important;
++}
++
++/* 透鏡（liquid-glass.js 建立）：膠囊移動時的放大鏡。
++   裡面是玻璃列內容的副本，以矢量放大（字清晰）。外層只負責平移（獨立圖層，移動不掉幀），
++   玻璃外觀和鼓起的縮放在 .sys-lens-view；不用 backdrop-filter（每幀重算模糊會掉幀），
++   用接近不透明的亮玻璃色蓋住底下原本的字，質感由高光、厚度和放大的副本呈現 */
++.sys-lens {
++    position: fixed;
++    left: 0;
++    top: 0;
++    z-index: 45;
++    pointer-events: none;
++    opacity: 0;
++    transition: opacity 0.16s ease;
++    will-change: transform, opacity;
++}
++
++.sys-lens.on {
++    opacity: 1;
++    transition-duration: 0.12s;
++}
++
++.sys-lens-view {
++    position: absolute;
++    inset: 0;
++    border-radius: 9999px;
++    transform-origin: 50% 50%;
++    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 55%, rgba(255, 255, 255, 0.1)), rgb(52, 52, 58);
++    box-shadow:
++        inset 0 0 0 0.5px rgba(255, 255, 255, 0.26),
++        inset 0 1px 0 rgba(255, 255, 255, 0.4),
++        inset 0 -1px 0 rgba(255, 255, 255, 0.12),
++        inset 0 -10px 16px -12px rgba(255, 255, 255, 0.18),
++        0 10px 26px -10px rgba(0, 0, 0, 0.55),
++        0 1px 3px rgba(0, 0, 0, 0.25);
++}
++
++.sys-lens-ink {
++    position: absolute;
++    inset: 0;
++    overflow: hidden;
++    border-radius: inherit;
++}
++
++[data-theme='light'] .sys-lens-view {
++    background: linear-gradient(180deg, #ffffff, #fafafd 55%, #f4f5fa);
++    box-shadow:
++        inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
++        inset 0 1px 0 rgba(255, 255, 255, 1),
++        inset 0 -1px 0 rgba(255, 255, 255, 0.6),
++        0 12px 26px -10px rgba(20, 30, 70, 0.3),
++        0 1px 3px rgba(20, 30, 70, 0.12);
++}
++
++/* 副本裡的字：放大後用最亮的文字色，背景、膠囊、互動效果全部拿掉 */
++.sys-lens-clone,
++.sys-lens-clone * {
++    pointer-events: none !important;
++    transition: none !important;
++    animation: none !important;
++}
++
++.sys-lens-clone {
++    background: none !important;
++    box-shadow: none !important;
++    -webkit-backdrop-filter: none !important;
++    backdrop-filter: none !important;
++    text-shadow: none !important;
++}
++
++.sys-lens-clone a,
++.sys-lens-clone button,
++.sys-lens-clone .navigation-link {
++    color: rgb(var(--c-gray-50)) !important;
++    background: transparent !important;
++    box-shadow: none !important;
++    transform: none !important;
++}
++
++
++
++/* 透鏡移動時藏起原本的膠囊（交叉淡換，不瞬間消失） */
++.lg-ind-traveling::before {
++    opacity: 0 !important;
++    transition: opacity 0.12s ease !important;
++}
++
++/* 玻璃列裡可滑動的內容：捲到哪一邊，另一邊就漸隱，文字不會被圓角切斷 */
++[data-lg-scroll='start'] {
++    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
++    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
++}
++
++[data-lg-scroll='end'] {
++    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
++    mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
++}
++
++[data-lg-scroll='middle'] {
++    -webkit-mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
++    mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
++}
++
++/* ---------- 防劇透霧面玻璃（IP、連線位址；system-theme/Spoiler.tsx） ----------
++   霧面玻璃：玻璃後面的字被模糊成一片光暈，表面一層淡白霧，四周羽化、融進背景，沒有框線；
++   揭開時像玻璃退霧，模糊一路降到 0、玻璃淡出。
++   （字的模糊直接做在文字上：Chrome 的 backdrop-filter 不會模糊同一個元素裡的文字） */
++:root {
++    /* 磨砂玻璃不是一塊平平的灰：上方受光、中間透著背後的柔光、下緣有一點反光 */
++    --frost-sheet: radial-gradient(130% 120% at 50% 0%, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07) 55%, rgba(255, 255, 255, 0.03) 80%),
++        linear-gradient(180deg, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.06));
++    --frost-fill: rgba(72, 74, 84, 0.22);
++    --frost-glow: 0.62;
++    --frost-blur: max(11px, 0.85em);
++}
++
++:root[data-theme='light'] {
++    --frost-sheet: radial-gradient(130% 120% at 50% 0%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.3) 55%, rgba(255, 255, 255, 0.2) 80%),
++        linear-gradient(180deg, rgba(255, 255, 255, 0) 60%, rgba(255, 255, 255, 0.22));
++    --frost-fill: rgba(214, 220, 236, 0.34);
++    --frost-glow: 0.7;
++    --frost-blur: max(14px, 1.05em);
++}
++
++.sys-spoiler {
++    position: relative;
++    display: inline-block;
++    max-width: 100%;
++    vertical-align: bottom;
++    border-radius: 8px;
++    isolation: isolate;
++}
++
++.sys-spoiler-block {
++    display: block;
++    border-radius: 14px;
++}
++
++.sys-spoiler-block > .sys-spoiler-content {
++    display: block;
++}
++
++.sys-spoiler-content {
++    transition: filter 0.55s ease, opacity 0.45s ease;
++}
++
++.sys-spoiler[data-hidden] {
++    cursor: pointer;
++}
++
++/* 霧化半徑跟著字級（em）走：要大到每個字完全融成一道連續的柔光，
++   看不出一顆一顆的字形，才不會像馬賽克或打碼，而是像光透過磨砂玻璃散開 */
++.sys-spoiler[data-hidden] > .sys-spoiler-content {
++    filter: blur(var(--frost-blur)) saturate(160%);
++    opacity: var(--frost-glow);
++    user-select: none;
++    pointer-events: none;
++}
++
++.sys-spoiler::after {
++    content: '';
++    position: absolute;
++    /* 玻璃從中心往四周漸漸變透明，邊緣融進背景，沒有框線。
++       羽化由 .sys-spoiler 的遮罩完成（見上面），外層容器就算會裁切也不會切出硬邊 */
++    inset: 0;
++    border-radius: 9999px;
++    pointer-events: none;
++    background: var(--frost-sheet), var(--frost-fill);
++    opacity: 0;
++    transform: scale(1.04);
++    transition: opacity 0.45s ease, transform 0.6s var(--lg-spring);
++}
++
++/* 羽化寬度註冊成可以做動畫的長度：揭開時羽化平滑縮到 0，邊緣不會突然變硬 */
++@property --frost-fx {
++    syntax: '<length-percentage>';
++    inherits: false;
++    initial-value: 0px;
++}
++
++@property --frost-fy {
++    syntax: '<length-percentage>';
++    inherits: false;
++    initial-value: 0px;
++}
++
++/* 遮罩套在整個 IP 元素上：玻璃和被模糊的字一起往四周淡出、融進背景。
++   淡出用緩入緩出的曲線（不是直線），看不出從哪裡開始；水平寬羽化，垂直從中線一路淡到上下緣，
++   整片玻璃像一團柔和的霧，四個角也是圓滑地消失 */
++.sys-spoiler {
++    --frost-fx: 0px;
++    --frost-fy: 0px;
++    -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) calc(var(--frost-fx) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fx) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fx) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fx) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fx) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fx) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fx) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fx) * 0)),
++        linear-gradient(to bottom, rgba(0, 0, 0, 0) calc(var(--frost-fy) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fy) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fy) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fy) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fy) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fy) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fy) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fy) * 0));
++    -webkit-mask-composite: source-in;
++    mask-image: linear-gradient(to right, rgba(0, 0, 0, 0) calc(var(--frost-fx) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fx) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fx) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fx) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fx) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fx) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fx) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fx) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fx) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fx) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fx) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fx) * 0)),
++        linear-gradient(to bottom, rgba(0, 0, 0, 0) calc(var(--frost-fy) * 0), rgba(0, 0, 0, 0.04) calc(var(--frost-fy) * 0.15), rgba(0, 0, 0, 0.14) calc(var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.3) calc(var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.5) calc(var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.72) calc(var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.89) calc(var(--frost-fy) * 0.88), rgba(0, 0, 0, 1) calc(var(--frost-fy) * 1), rgba(0, 0, 0, 1) calc(100% - var(--frost-fy) * 1), rgba(0, 0, 0, 0.89) calc(100% - var(--frost-fy) * 0.88), rgba(0, 0, 0, 0.72) calc(100% - var(--frost-fy) * 0.75), rgba(0, 0, 0, 0.5) calc(100% - var(--frost-fy) * 0.6), rgba(0, 0, 0, 0.3) calc(100% - var(--frost-fy) * 0.45), rgba(0, 0, 0, 0.14) calc(100% - var(--frost-fy) * 0.3), rgba(0, 0, 0, 0.04) calc(100% - var(--frost-fy) * 0.15), rgba(0, 0, 0, 0) calc(100% - var(--frost-fy) * 0));
++    mask-composite: intersect;
++    transition: --frost-fx 0.55s ease, --frost-fy 0.55s ease;
++}
++
++.sys-spoiler[data-hidden] {
++    --frost-fx: 22px;
++    --frost-fy: 50%;
++}
++
++.sys-spoiler-block[data-hidden] {
++    --frost-fx: 32px;
++    --frost-fy: 50%;
++}
++
++.sys-spoiler[data-hidden]::after {
++    opacity: 1;
++    transform: none;
++}
++
++/* 滑過時霧稍微變薄，提示可以點 */
++.sys-spoiler[data-hidden]:hover > .sys-spoiler-content {
++    filter: blur(calc(var(--frost-blur) * 0.85)) saturate(170%);
++}
++
++.sys-spoiler[data-hidden]:active::after {
++    transform: scale(0.97);
++}
++
++/* ---------- 控制台防劇透霧面玻璃（Console.tsx） ---------- */
++.sys-frost {
++    position: absolute;
++    inset: 0;
++    z-index: 5;
++    display: flex;
++    align-items: center;
++    justify-content: center;
++    border-radius: inherit;
++    cursor: pointer;
++    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 40%, rgba(255, 255, 255, 0.05)), rgba(24, 24, 28, 0.3);
++    -webkit-backdrop-filter: blur(0px);
++    backdrop-filter: blur(0px);
++    box-shadow:
++        inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
++        inset 0 1px 0 rgba(255, 255, 255, 0.16),
++        inset 0 -1px 0 rgba(255, 255, 255, 0.05);
++    opacity: 0;
++    visibility: hidden;
++    transition: opacity 0.4s ease, -webkit-backdrop-filter 0.5s ease, backdrop-filter 0.5s ease, visibility 0s linear 0.5s;
++}
++
++.sys-frost[data-on] {
++    opacity: 1;
++    visibility: visible;
++    -webkit-backdrop-filter: blur(18px) saturate(140%) brightness(1.05);
++    backdrop-filter: blur(18px) saturate(140%) brightness(1.05);
++    transition: opacity 0.4s ease, -webkit-backdrop-filter 0.5s ease, backdrop-filter 0.5s ease;
++}
++
++.sys-frost-label {
++    display: inline-flex;
++    align-items: center;
++    gap: 8px;
++    padding: 8px 16px;
++    border-radius: 9999px;
++    font: 500 0.875rem/1.2 var(--font-sans, system-ui);
++    color: #f5f5f7;
++    background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
++    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.24);
++    transform: scale(0.94);
++    transition: transform 0.5s var(--lg-spring);
++}
++
++.sys-frost[data-on] .sys-frost-label {
++    transform: none;
++}
++
++.sys-frost:hover .sys-frost-label {
++    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1));
++}
++
++/* 右上角的開關（終端機永遠是深色，開關固定用深色玻璃） */
++.sys-frost-toggle {
++    position: absolute !important;
++    top: 10px;
++    right: 10px;
++    z-index: 6;
++    display: grid;
++    place-items: center;
++    width: 32px;
++    height: 32px;
++    padding: 0;
++    border: 0;
++    border-radius: 9999px;
++    color: #f5f5f7;
++    cursor: pointer;
++    opacity: 0.7;
++    --lg-radius: 9999px;
++    --lg-fill-top: rgba(255, 255, 255, 0.08) !important;
++    --lg-fill: rgba(28, 28, 32, 0.45) !important;
++    --lg-hairline: rgba(255, 255, 255, 0.14) !important;
++    transition: opacity 0.2s ease, transform 0.5s var(--lg-spring);
++}
++
++.sys-frost-toggle:hover,
++.sys-frost-toggle[aria-pressed='true'] {
++    opacity: 1;
++}
++
++.sys-frost-toggle:active {
++    transform: scale(0.9);
++}
++
++@media (prefers-reduced-motion: reduce) {
++    .sys-spoiler-content,
++    .sys-spoiler::after,
++    .sys-frost-label {
++        transition: none;
++    }
++}
++
++/* 選單項目：iOS 用灰色反白，不用整條藍色 */
++.sys-menu a,
++.sys-menu button,
++.sys-menu [role='menuitem'] {
++    border-radius: 12px;
++}
++
++/* ---------- 交互 ---------- */
++
++/* 玻璃列：游標附近有一圈柔光，像光線在玻璃裡移動 */
++.sys-bar::after {
++    background: radial-gradient(220px circle at var(--lg-px, -999px) var(--lg-py, -999px), var(--sys-glow), transparent 70%);
++    transition: opacity 0.35s ease;
++}
++
++@media (hover: hover) {
++    .sys-bar:hover::after {
++        opacity: 1;
++    }
++}
++
++/* 頁面進場：淡入並以彈簧上浮 */
++@keyframes lg-rise {
++    from {
++        opacity: 0;
++        transform: translateY(10px);
++    }
++}
++
++.sys-page {
++    animation: lg-rise 0.5s var(--lg-spring) both;
++}
++
++/* 深色 / 淺色切換：從按下的位置以圓形展開（View Transitions；不支援的瀏覽器直接切換） */
++::view-transition-old(root),
++::view-transition-new(root) {
++    animation: none;
++    mix-blend-mode: normal;
++}
++
++/* 切換按鈕的圖示：太陽 / 月亮轉進來 */
++@keyframes lg-swap {
++    from {
++        opacity: 0;
++        transform: rotate(-90deg) scale(0.5);
++    }
++}
++
++.sys-swap {
++    animation: lg-swap 0.55s var(--lg-spring);
++}
++
++/* 勾選時的彈跳 */
++@keyframes lg-pop {
++    0% {
++        transform: scale(0.8);
++    }
++}
++
++.sys-press {
++    transition-property: transform, background-color, color, opacity, box-shadow;
++    transition-duration: 0.5s, 0.2s, 0.2s, 0.2s, 0.2s;
++    transition-timing-function: var(--lg-spring), ease, ease, ease, ease;
++}
++
++.sys-press:not(:disabled):active {
++    transform: scale(0.97);
++    transition-duration: 0.15s, 0.1s, 0.1s, 0.1s, 0.1s;
++}
++
++@media (prefers-reduced-motion: reduce) {
++    .sys-page,
++    .sys-swap {
++        animation: none;
++    }
++
++    .lg-ind::before,
++    .sys-press,
++    .sys-bar a,
++    .sys-bar button {
++        transition: none;
++    }
++
++    .sys-press:not(:disabled):active,
++    .sys-bar a:active,
++    .sys-bar button:active {
++        transform: none;
++    }
++}
+diff --git a/resources/scripts/system-theme/theme-mode.ts b/resources/scripts/system-theme/theme-mode.ts
+new file mode 100644
+index 0000000..b6390ac
+--- /dev/null
++++ b/resources/scripts/system-theme/theme-mode.ts
+@@ -0,0 +1,85 @@
++import { useEffect, useState } from 'react';
++
++/**
++ * 深色 / 淺色模式。
++ * - 沒有手動選過時跟隨作業系統（prefers-color-scheme）
++ * - 手動切換後記在這個瀏覽器（localStorage），下次打開沿用
++ * - 色盤本身在 GlobalStylesheet：<html data-theme="light"> 換成淺色變數
++ */
++export type ThemeMode = 'light' | 'dark';
++
++const KEY = 'pterodactyl:theme';
++const EVENT = 'sys-theme-change';
++
++const media = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: light)') : null;
++
++const stored = (): ThemeMode | null => {
++    try {
++        const value = window.localStorage.getItem(KEY);
++        return value === 'light' || value === 'dark' ? value : null;
++    } catch (e) {
++        return null;
++    }
++};
++
++const apply = (mode: ThemeMode): void => {
++    document.documentElement.setAttribute('data-theme', mode);
++    window.dispatchEvent(new CustomEvent<ThemeMode>(EVENT, { detail: mode }));
++};
++
++export const currentThemeMode = (): ThemeMode =>
++    document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
++
++/** 在畫面渲染前呼叫一次（index.tsx），避免先閃出另一種顏色 */
++export const initThemeMode = (): void => {
++    apply(stored() || (media && media.matches ? 'light' : 'dark'));
++
++    const follow = (e: MediaQueryListEvent) => {
++        if (!stored()) apply(e.matches ? 'light' : 'dark');
++    };
++    if (media && media.addEventListener) media.addEventListener('change', follow);
++};
++
++/** 切換模式；有傳入點擊位置時，新模式會從那個點以圓形展開 */
++export const setThemeMode = (mode: ThemeMode, origin?: { x: number; y: number }): void => {
++    try {
++        window.localStorage.setItem(KEY, mode);
++    } catch (e) {
++        // 無痕模式等情況存不了，仍然切換本次的顯示
++    }
++
++    // eslint-disable-next-line @typescript-eslint/no-explicit-any
++    const doc = document as any;
++    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
++    if (typeof doc.startViewTransition !== 'function' || reduced) {
++        apply(mode);
++        return;
++    }
++
++    const x = origin ? origin.x : window.innerWidth / 2;
++    const y = origin ? origin.y : 0;
++    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
++    const transition = doc.startViewTransition(() => apply(mode));
++
++    transition.ready
++        .then(() => {
++            document.documentElement.animate(
++                { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
++                { duration: 560, easing: 'cubic-bezier(0.22, 0.8, 0.24, 1)', pseudoElement: '::view-transition-new(root)' }
++            );
++        })
++        .catch(() => undefined);
++};
++
++/** React：讀取目前模式並在切換時重新渲染 */
++export const useThemeMode = (): [ThemeMode, typeof setThemeMode] => {
++    const [mode, setMode] = useState<ThemeMode>(currentThemeMode);
++
++    useEffect(() => {
++        const listener = (e: Event) => setMode((e as CustomEvent<ThemeMode>).detail);
++        window.addEventListener(EVENT, listener);
++        return () => window.removeEventListener(EVENT, listener);
++    }, []);
++
++    return [mode, setThemeMode];
++};
+diff --git a/resources/scripts/system-theme/tokens.d.ts b/resources/scripts/system-theme/tokens.d.ts
+new file mode 100644
+index 0000000..364a6fc
+--- /dev/null
++++ b/resources/scripts/system-theme/tokens.d.ts
+@@ -0,0 +1,15 @@
++/** tokens.js 的型別（tokens.js 是 CommonJS，tailwind.config.js 也會讀它） */
++type Shades = Record<string, string>;
++type Palette = { gray: Shades; blue: Shades; red: Shades; green: Shades; yellow: Shades; cyan: Shades };
++
++declare const tokens: {
++    modes: { dark: Palette; light: Palette };
++    wallpaper: { dark: string; light: string };
++    cssVars: (mode: 'dark' | 'light') => string;
++    tailwindColors: (withAlpha: boolean) => Record<string, string | Shades>;
++    borderRadius: Record<string, string>;
++    fontFamily: Record<string, string[]>;
++    spring: string;
++};
++
++export = tokens;
+diff --git a/resources/scripts/system-theme/tokens.js b/resources/scripts/system-theme/tokens.js
+new file mode 100644
+index 0000000..0d3920e
+--- /dev/null
++++ b/resources/scripts/system-theme/tokens.js
+@@ -0,0 +1,231 @@
++/**
++ * 系統主題 token（Liquid Glass，iOS 深色 / 淺色）——整個面板唯一的設計來源。
++ *
++ * 顏色在執行時以 CSS 變數（--c-gray-700 這類，值是 "R G B"）提供，
++ * tailwind.config.js 與 twin.macro 都改成讀這些變數，所以切換深色 / 淺色時，
++ * 所有頁面的 bg-gray-700、text-neutral-300、bg-blue-500……會一起換。要調整主題，只改這裡。
++ *
++ * 色階語意（Pterodactyl 原本的用法 → iOS 角色）：
++ *               深色                      淺色
++ *   800 頁面底色  systemBackground 黑      systemGroupedBackground
++ *   900 深色區    比頁面略亮               比頁面略深
++ *   700 內容框    secondarySystemBackground 白
++ *   600 輸入框    tertiarySystemBackground  淺灰填色
++ *   500 控制項    systemGray4              systemGray4
++ *   400 邊框/說明 systemGray               systemGray
++ *   300 次要文字  systemGray2              secondaryLabel
++ *   200 內文      淺灰                     深灰
++ *   100/50 標題   白                       黑
++ */
++
++const dark = {
++    gray: {
++        50: '#f5f5f7',
++        100: '#e5e5ea',
++        200: '#d1d1d6',
++        300: '#aeaeb2',
++        400: '#8e8e93',
++        500: '#636366',
++        600: '#2c2c2e',
++        700: '#1c1c1e',
++        800: '#000000',
++        900: '#111113',
++    },
++    blue: {
++        50: '#eaf4ff',
++        100: '#d0e7ff',
++        200: '#a3cfff',
++        300: '#70b5ff',
++        400: '#3d9bff',
++        500: '#0a84ff',
++        600: '#0071e3',
++        700: '#005bb8',
++        800: '#00468f',
++        900: '#003166',
++    },
++    red: {
++        50: '#fff0ef',
++        100: '#ffd9d6',
++        200: '#ffb1ab',
++        300: '#ff8a82',
++        400: '#ff665d',
++        500: '#ff453a',
++        600: '#e5372d',
++        700: '#bf2a22',
++        800: '#8f1f19',
++        900: '#5e1410',
++    },
++    green: {
++        50: '#eafbef',
++        100: '#c9f4d5',
++        200: '#97e9ad',
++        300: '#65de86',
++        400: '#48d86d',
++        500: '#30d158',
++        600: '#24b348',
++        700: '#1b8c38',
++        800: '#146629',
++        900: '#0d421b',
++    },
++    /* 面板的「警告」用 yellow；iOS 對應的是橘色，白字在上面才讀得清楚 */
++    yellow: {
++        50: '#fff6e8',
++        100: '#ffe8c2',
++        200: '#ffd38a',
++        300: '#ffbf52',
++        400: '#ffad2a',
++        500: '#ff9f0a',
++        600: '#e08600',
++        700: '#b36b00',
++        800: '#804c00',
++        900: '#4d2e00',
++    },
++    cyan: {
++        50: '#effaff',
++        100: '#d6f3ff',
++        200: '#adeaff',
++        300: '#85dfff',
++        400: '#64d2ff',
++        500: '#3cc4f5',
++        600: '#1fa8d9',
++        700: '#1785ad',
++        800: '#106280',
++        900: '#0a4054',
++    },
++};
++
++/* 淺色：灰階反轉，強調色改用 iOS 淺色模式的系統色（在白底上對比較足） */
++const light = {
++    gray: {
++        50: '#000000',
++        100: '#1c1c1e',
++        200: '#3a3a3c',
++        300: '#6c6c70',
++        400: '#8e8e93',
++        500: '#d1d1d6',
++        600: '#ebebf0',
++        700: '#ffffff',
++        800: '#f2f2f7',
++        900: '#e5e5ea',
++    },
++    blue: Object.assign({}, dark.blue, { 300: '#409cff', 400: '#0066d6', 500: '#007aff', 600: '#0062cc' }),
++    red: Object.assign({}, dark.red, { 300: '#d70015', 400: '#e0352b', 500: '#ff3b30', 600: '#d70015' }),
++    green: Object.assign({}, dark.green, { 300: '#248a3d', 400: '#2a9d4a', 500: '#34c759', 600: '#248a3d' }),
++    yellow: Object.assign({}, dark.yellow, { 300: '#c76b00', 400: '#e08600', 500: '#ff9500', 600: '#c93400' }),
++    cyan: Object.assign({}, dark.cyan, { 300: '#0083b8', 400: '#0a9ed6', 500: '#32ade6', 600: '#0083b8' }),
++};
++
++/* 桌布：玻璃要有東西可以折射；固定在視窗，內容在上面捲動 */
++const wallpaper = {
++    dark: [
++        'radial-gradient(60rem 36rem at 85% -10rem, rgba(10, 132, 255, 0.2), transparent 70%)',
++        'radial-gradient(50rem 30rem at 0% -8rem, rgba(191, 90, 242, 0.13), transparent 70%)',
++        'radial-gradient(60rem 40rem at 50% 115%, rgba(100, 210, 255, 0.07), transparent 70%)',
++    ].join(', '),
++    /* 淺色：iOS 淺色桌布式的粉彩光，讓白玻璃有顏色可以折射，看起來才「通透」 */
++    light: [
++        'radial-gradient(56rem 34rem at 88% -6rem, rgba(0, 122, 255, 0.3), transparent 70%)',
++        'radial-gradient(48rem 30rem at 4% -4rem, rgba(175, 82, 222, 0.24), transparent 70%)',
++        'radial-gradient(40rem 26rem at 52% 14rem, rgba(255, 149, 0, 0.1), transparent 70%)',
++        'radial-gradient(60rem 40rem at 50% 115%, rgba(50, 173, 230, 0.2), transparent 70%)',
++    ].join(', '),
++};
++
++const families = ['gray', 'blue', 'red', 'green', 'yellow', 'cyan'];
++
++function channels(hex) {
++    const h = hex.replace('#', '');
++    return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)).join(' ');
++}
++
++/** 某個模式的 CSS 變數宣告（給 GlobalStylesheet 使用） */
++function cssVars(mode) {
++    const palette = mode === 'light' ? light : dark;
++    const out = [];
++    families.forEach((fam) => {
++        Object.keys(palette[fam]).forEach((shade) => out.push(`--c-${fam}-${shade}: ${channels(palette[fam][shade])};`));
++    });
++    out.push(`--sys-wallpaper: ${wallpaper[mode === 'light' ? 'light' : 'dark']};`);
++    out.push(`color-scheme: ${mode === 'light' ? 'light' : 'dark'};`);
++    return out.join(' ');
++}
++
++/**
++ * Tailwind 的色盤：每個色階都指向 CSS 變數。
++ * withAlpha = true 給 Tailwind 3（支援 bg-blue-500/20 這種透明度寫法）；
++ * withAlpha = false 給 twin.macro 2（它看不懂 <alpha-value>）。
++ */
++function tailwindColors(withAlpha) {
++    const scale = (fam) => {
++        const o = {};
++        Object.keys(dark[fam]).forEach((shade) => {
++            o[shade] = withAlpha ? `rgb(var(--c-${fam}-${shade}) / <alpha-value>)` : `rgb(var(--c-${fam}-${shade}))`;
++        });
++        return o;
++    };
++    return {
++        black: '#000000',
++        white: '#ffffff',
++        primary: scale('blue'),
++        blue: scale('blue'),
++        gray: scale('gray'),
++        neutral: scale('gray'),
++        red: scale('red'),
++        green: scale('green'),
++        yellow: scale('yellow'),
++        cyan: scale('cyan'),
++    };
++}
++
++module.exports = {
++    /** 原始色值（hex），dark / light 兩套 */
++    modes: { dark, light },
++    wallpaper,
++    cssVars,
++    tailwindColors,
++
++    /* iOS 的圓角比 Tailwind 預設大很多；所有 `rounded` 一起放大 */
++    borderRadius: {
++        none: '0',
++        sm: '6px',
++        DEFAULT: '12px',
++        md: '12px',
++        lg: '14px',
++        xl: '20px',
++        '2xl': '24px',
++        '3xl': '28px',
++        full: '9999px',
++    },
++
++    fontFamily: {
++        sans: [
++            '-apple-system',
++            'BlinkMacSystemFont',
++            '"SF Pro Text"',
++            '"Segoe UI Variable Text"',
++            '"Segoe UI"',
++            '"PingFang TC"',
++            '"Microsoft JhengHei UI"',
++            '"Noto Sans TC"',
++            'system-ui',
++            'sans-serif',
++        ],
++        header: [
++            '-apple-system',
++            'BlinkMacSystemFont',
++            '"SF Pro Display"',
++            '"Segoe UI Variable Display"',
++            '"Segoe UI"',
++            '"PingFang TC"',
++            '"Microsoft JhengHei UI"',
++            '"Noto Sans TC"',
++            'system-ui',
++            'sans-serif',
++        ],
++        mono: ['"SF Mono"', 'ui-monospace', '"Cascadia Mono"', '"JetBrains Mono"', 'Consolas', 'monospace'],
++    },
++
++    /* 動態：iOS 預設彈簧（response 0.5 / damping 0.75）的近似曲線 */
++    spring:
++        'linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1)',
++};
+diff --git a/tailwind.config.js b/tailwind.config.js
+index 7c814bd..1c2277f 100644
+--- a/tailwind.config.js
++++ b/tailwind.config.js
+@@ -1,17 +1,5 @@
+-const colors = require('tailwindcss/colors');
+-
+-const gray = {
+-    50: 'hsl(216, 33%, 97%)',
+-    100: 'hsl(214, 15%, 91%)',
+-    200: 'hsl(210, 16%, 82%)',
+-    300: 'hsl(211, 13%, 65%)',
+-    400: 'hsl(211, 10%, 53%)',
+-    500: 'hsl(211, 12%, 43%)',
+-    600: 'hsl(209, 14%, 37%)',
+-    700: 'hsl(209, 18%, 30%)',
+-    800: 'hsl(209, 20%, 25%)',
+-    900: 'hsl(210, 24%, 16%)',
+-};
++// 系統主題（Liquid Glass）：顏色、圓角、字型都從這個檔案來
++const tokens = require('./resources/scripts/system-theme/tokens');
+ 
+ module.exports = {
+     content: [
+@@ -19,18 +7,13 @@ module.exports = {
+     ],
+     theme: {
+         extend: {
+-            fontFamily: {
+-                header: ['"IBM Plex Sans"', '"Roboto"', 'system-ui', 'sans-serif'],
+-            },
+-            colors: {
+-                black: '#131a20',
+-                // "primary" and "neutral" are deprecated, prefer the use of "blue" and "gray"
+-                // in new code.
+-                primary: colors.blue,
+-                gray: gray,
+-                neutral: gray,
+-                cyan: colors.cyan,
++            fontFamily: tokens.fontFamily,
++            borderRadius: tokens.borderRadius,
++            transitionTimingFunction: {
++                spring: tokens.spring,
+             },
++            // 顏色指向執行時的 CSS 變數，深色 / 淺色切換時所有頁面一起變（見 tokens.js）
++            colors: tokens.tailwindColors(true),
+             fontSize: {
+                 '2xs': '0.625rem',
+             },
+diff --git a/tailwind.twin.config.js b/tailwind.twin.config.js
+new file mode 100644
+index 0000000..b26f419
+--- /dev/null
++++ b/tailwind.twin.config.js
+@@ -0,0 +1,15 @@
++// twin.macro 2 用的 Tailwind 設定：與 tailwind.config.js 相同，
++// 只是顏色不帶 <alpha-value>（twin.macro 2 不支援這個寫法）。
++const tokens = require('./resources/scripts/system-theme/tokens');
++const base = require('./tailwind.config');
++
++module.exports = {
++    ...base,
++    theme: {
++        ...base.theme,
++        extend: {
++            ...base.theme.extend,
++            colors: tokens.tailwindColors(false),
++        },
++    },
++};
