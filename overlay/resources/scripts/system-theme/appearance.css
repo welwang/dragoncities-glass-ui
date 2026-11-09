@@ -6,11 +6,16 @@
  *    - 控制台的霧面按鈕：點陣眼睛切換
  *    - 所有玻璃：滑鼠經過時，靠近游標的那段邊緣亮起來
  *    光的顏色：深色模式藍紫、淺色模式暖橘
- * 2. 彩虹泡泡玻璃：淺色模式專用的「玻璃材質」，<html data-theme="light" data-accent="rainbow">（theme-mode.ts 切換）。
- *    深色模式時設定保留但不生效，切回淺色就恢復。只改玻璃本身，不加任何彩虹元素：
+ * 2. 彩虹世界：淺色模式專用，<html data-theme="light" data-accent="rainbow">（theme-mode.ts 切換）。
+ *    深色模式時設定保留但不生效，切回淺色就恢復。
  *    - 玻璃像肥皂泡：薄膜干涉色由 liquid-glass.js 畫進玻璃的高光圖（--lg-iris），中間幾乎透明、越靠邊緣越明顯
- *    - 導覽列的玻璃有輕微稜鏡色散（--lg-disperse）：背後的內容滑到厚邊時分出彩色邊
- * 以上都不新增 backdrop-filter；動畫跟著全域動畫速度，系統「減少動態效果」時停止
+ *    - 導覽列的玻璃有稜鏡色散（--lg-disperse）：背後的內容滑到厚邊時分出彩色邊
+ *    - 泡泡天空桌布：粉彩極光，玻璃折射它，整個畫面帶著彩虹的光
+ *    - 卡片是珍珠色（半透明白 + 四角淡淡的虹彩）；邊緣光、點陣圖示、開關、載入條都是光譜色
+ *    - 進入時從點擊位置噴出點陣光點和泡泡；之後按按鈕、連結、開關時，按下的地方會冒出幾顆小泡泡（rainbow-world.ts）
+ * 以上都不新增 backdrop-filter；全部用 CSS / canvas 畫，不下載任何圖片（網路快慢看到的都一樣）；
+ * 沒有一直在播放的動畫（只有被觸發時才播，播完就停），玻璃不會因此每一幀都重算折射；
+ * 動畫跟著全域動畫速度，系統「減少動態效果」時停止
  */
 
 /* ======================================================================
@@ -436,11 +441,10 @@
 
 /* 所有玻璃：薄膜干涉色畫進玻璃本身（liquid-glass.js 讀 --lg-iris，切換時自動重算） */
 :root[data-theme='light'][data-accent='rainbow'] .lg {
-    --lg-iris: 1;
+    --lg-iris: 1.3;
 }
 
-/* 導覽列：輕微稜鏡色散。每多一個元素多兩次位移運算，所以只給導覽列；
-   低階裝置捲動不順時改成 0 */
+/* 導覽列：稜鏡色散。每多一個元素多兩次位移運算，所以只給導覽列 */
 :root[data-theme='light'][data-accent='rainbow'] .sys-nav-shell {
     --lg-disperse: 0.24;
 }
@@ -455,30 +459,104 @@
 /* 薄膜色（CSS 版）：用在選取膠囊、分頁透鏡這兩個由 CSS 畫的玻璃，
    以及不支援 SVG 折射的瀏覽器。幾團很淡的金、洋紅、青、綠交疊，中間清透 */
 :root[data-theme='light'][data-accent='rainbow'] {
-    --rb-film: radial-gradient(70% 130% at 8% 0%, rgba(255, 210, 120, 0.13), transparent 60%),
-        radial-gradient(60% 130% at 40% 100%, rgba(230, 130, 230, 0.09), transparent 62%),
-        radial-gradient(60% 130% at 70% 0%, rgba(110, 205, 255, 0.12), transparent 62%),
-        radial-gradient(55% 130% at 96% 100%, rgba(120, 230, 180, 0.1), transparent 62%);
+    --rb-film: radial-gradient(70% 130% at 8% 0%, rgba(255, 210, 120, 0.22), transparent 60%),
+        radial-gradient(60% 130% at 40% 100%, rgba(230, 130, 230, 0.15), transparent 62%),
+        radial-gradient(60% 130% at 70% 0%, rgba(110, 205, 255, 0.2), transparent 62%),
+        radial-gradient(55% 130% at 96% 100%, rgba(120, 230, 180, 0.18), transparent 62%);
+    /* 光譜：邊緣光、載入條共用（紅 → 橘 → 黃 → 綠 → 藍 → 紫） */
+    --rb-1: #ff5e8a;
+    --rb-2: #ffa24c;
+    --rb-3: #ffd84d;
+    --rb-4: #4fdc96;
+    --rb-5: #4fc3ff;
+    --rb-6: #8f7dff;
+    /* 泡泡天空：粉彩極光，玻璃會折射它 */
+    --sys-wallpaper: radial-gradient(62rem 40rem at 6% -8rem, rgba(255, 158, 205, 0.4), transparent 70%),
+        radial-gradient(58rem 38rem at 94% -6rem, rgba(110, 190, 255, 0.46), transparent 70%),
+        radial-gradient(46rem 30rem at 50% 8rem, rgba(255, 216, 120, 0.28), transparent 70%),
+        radial-gradient(60rem 40rem at 100% 82%, rgba(170, 145, 255, 0.34), transparent 70%),
+        radial-gradient(60rem 40rem at 0% 92%, rgba(110, 228, 190, 0.34), transparent 70%),
+        radial-gradient(50rem 34rem at 55% 118%, rgba(255, 178, 130, 0.26), transparent 70%);
 }
 
-/* 選取膠囊：一顆通透的小泡泡 */
-:root[data-theme='light'][data-accent='rainbow'] .lg-ind::before {
-    background: var(--rb-film), rgba(255, 255, 255, 0.66);
+/* 選取文字：淡紫 */
+:root[data-theme='light'][data-accent='rainbow'] ::selection {
+    background: rgba(160, 140, 255, 0.3);
 }
 
-/* 導覽列浮在深色內容上（.lg-over-dark）時，膠囊回到深色玻璃的選取色，白字才看得清楚 */
-:root[data-theme='light'][data-accent='rainbow'] .lg-over-dark .lg-ind::before {
-    background: var(--sys-select);
+/* ---------- 珍珠色卡片（ContentBox、TitledGreyBox、列表列、控制台的數值與圖表卡片：class="sys-card"） ----------
+   半透明白讓背後的極光透出一點，四角各一團很淡的虹彩，邊緣一圈白色亮線 */
+:root[data-theme='light'][data-accent='rainbow'] .sys-card {
+    background: radial-gradient(120% 110% at 0% 0%, rgba(255, 196, 228, 0.3), transparent 52%),
+        radial-gradient(110% 120% at 100% 0%, rgba(176, 216, 255, 0.34), transparent 55%),
+        radial-gradient(120% 110% at 100% 100%, rgba(186, 244, 214, 0.28), transparent 52%),
+        radial-gradient(110% 120% at 0% 100%, rgba(255, 226, 168, 0.26), transparent 55%),
+        rgba(255, 255, 255, 0.76);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8), inset 0 1px 0 #ffffff, 0 10px 30px -14px rgba(120, 110, 200, 0.28);
 }
 
-/* 分頁透鏡：滑動中的一顆泡泡 */
-:root[data-theme='light'][data-accent='rainbow'] .sys-lens-view {
-    background: var(--rb-film), linear-gradient(180deg, #ffffff, #fafafd 55%, #f4f5fa);
+:root[data-theme='light'][data-accent='rainbow'] .sys-card-row:hover {
+    background: radial-gradient(120% 110% at 0% 0%, rgba(255, 196, 228, 0.42), transparent 55%),
+        radial-gradient(110% 120% at 100% 0%, rgba(176, 216, 255, 0.46), transparent 58%),
+        radial-gradient(120% 110% at 100% 100%, rgba(186, 244, 214, 0.38), transparent 55%),
+        radial-gradient(110% 120% at 0% 100%, rgba(255, 226, 168, 0.36), transparent 58%),
+        rgba(255, 255, 255, 0.9);
 }
 
-/* 不支援 SVG 折射的瀏覽器（liquid-glass.js 在 <html> 加上 .lg-fallback）：用 CSS 薄膜色代替 */
-:root.lg-fallback[data-theme='light'][data-accent='rainbow'] :is(.sys-nav-shell, .sys-server-row, .sys-menu, .sys-sheet, .sys-float):not(.lg-over-dark) {
-    background: var(--rb-film), linear-gradient(180deg, var(--lg-fill-top), transparent 60%), var(--lg-fill);
+/* ---------- 光譜色的光：深淺色開關與設定開關的邊緣光、玻璃邊緣的亮線 ---------- */
+/* 亮線：看得到的那一段（游標方向前後約 45°）剛好走過整條光譜 */
+:root[data-theme='light'][data-accent='rainbow'] .sys-edge-glow::after {
+    background: conic-gradient(
+        from calc(var(--tt-a) - 45deg),
+        var(--rb-1) 0deg,
+        var(--rb-2) 18deg,
+        var(--rb-3) 36deg,
+        var(--rb-4) 54deg,
+        var(--rb-5) 72deg,
+        var(--rb-6) 90deg,
+        var(--rb-6) 300deg,
+        var(--rb-1) 360deg
+    );
+}
+
+:root[data-theme='light'][data-accent='rainbow'] .sys-edge-glow::before {
+    background: radial-gradient(30% 30% at var(--tt-bx) var(--tt-by), rgba(255, 140, 200, 0.5), transparent 100%),
+        radial-gradient(46% 46% at var(--tt-bx) var(--tt-by), rgba(120, 170, 255, 0.45), transparent 100%);
+}
+
+/* 設定開關開啟時：軌道是一層淡淡的光譜 */
+:root[data-theme='light'][data-accent='rainbow'] .sys-sw[data-on] > .sys-sw-track {
+    background: linear-gradient(100deg, rgba(255, 120, 170, 0.32), rgba(255, 196, 90, 0.32), rgba(100, 220, 160, 0.32), rgba(90, 180, 255, 0.34), rgba(170, 130, 255, 0.34)),
+        var(--tt-track);
+}
+
+/* 玻璃邊緣的亮線：游標附近的那段是一圈光譜（以游標為中心的放射狀彩虹） */
+:root.lg-refraction[data-theme='light'][data-accent='rainbow'] .lg:not(.sys-tip)::before {
+    background: conic-gradient(
+        from 0deg at var(--lg-px, -999px) var(--lg-py, -999px),
+        var(--rb-1),
+        var(--rb-2),
+        var(--rb-3),
+        var(--rb-4),
+        var(--rb-5),
+        var(--rb-6),
+        var(--rb-1)
+    );
+    -webkit-mask-image: radial-gradient(150px circle at var(--lg-px, -999px) var(--lg-py, -999px), #000, transparent 70%), linear-gradient(#000 0 0),
+        linear-gradient(#000 0 0);
+    -webkit-mask-clip: border-box, content-box, border-box;
+    -webkit-mask-composite: source-in, xor;
+    mask-image: radial-gradient(150px circle at var(--lg-px, -999px) var(--lg-py, -999px), #000, transparent 70%), linear-gradient(#000 0 0),
+        linear-gradient(#000 0 0);
+    mask-clip: border-box, content-box, border-box;
+    mask-composite: intersect, exclude;
+}
+
+/* ---------- 頂端載入條：一條光譜（靜態；載入條本身的長度變化照舊） ----------
+   不做持續流動：任何一直在動的東西只要靠近玻璃，玻璃的折射每一幀都要重算 */
+:root[data-theme='light'][data-accent='rainbow'] .sys-progress {
+    background: linear-gradient(90deg, var(--rb-1), var(--rb-2), var(--rb-3), var(--rb-4), var(--rb-5), var(--rb-6));
+    box-shadow: 0 -2px 10px 2px rgba(160, 140, 255, 0.55);
 }
 
 /* ---------- 無障礙 ---------- */
@@ -492,4 +570,5 @@
     .sys-mini-switch::before {
         transition: none;
     }
+
 }

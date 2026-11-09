@@ -101,12 +101,27 @@ The slider changes playback rate and spring simulation time, not the display's u
 
 For example, the code's 2000ms simulation-time cutoff can correspond to about eight seconds at 0.25× with normal frame intervals; stalls can make it longer, while normal convergence ends it sooner. The slider controls visibility and preference, not an energy-saving mode.
 
-### Rainbow bubble theme (light mode) costs
+### Glass maps generated on a background thread (1.2.0)
 
-- **Prismatic dispersion on the navigation bar**: its refraction filter displaces the red, green, and blue channels separately and recombines them, roughly three times the displacement work. Only the navigation bar uses it; server cards, menus, and other glass only gain thin-film colour in their highlight texture (computed once per size, no per-frame cost), with the same filter steps.
-- **Tab lens**: text inside the lens is not dispersed (splitting black text on a white lens only produces ghosting). The bubble theme adds no continuously running animation.
-- **The selection pill and tab lens** use CSS gradients for their bubble colour; no backdrop filters are added, and buttons and other controls are unchanged.
-- **Measurement**: scrolling the same test page for 2.5 seconds in headless Chromium with CPU software rendering (no GPU), the median frame time was about 33 ms for the standard light theme and about 50 ms with the rainbow theme; nearly all of the extra cost comes from the navigation bar's prismatic dispersion. If scrolling stutters on slow devices, set `--lg-disperse` to `0` for `.sys-nav-shell` in `appearance.css` and rebuild. This is a worst-case relative comparison, not a frame-rate figure for GPU-accelerated browsers. On slow devices, turn the rainbow theme off or use dark mode, which never applies it.
+- Each piece of glass needs two maps for its size (refraction direction and specular highlight), computed pixel by pixel. A full-width navigation bar on a 2× screen is about 600,000 pixels, and the rainbow film adds trigonometry per pixel.
+- Before 1.2.0 this ran on the main thread, so the page froze when a new page showed glass of a new size, when the window was resized, and when switching to rainbow. Measured (headless Chromium without GPU, 2× density, same test page), the longest main-thread block was **334 ms** turning rainbow on, **311 ms** when a new page's glass appeared, and **227 ms** on resize.
+- In 1.2.0 a Web Worker computes the maps and encodes them as PNG; the main-thread block is **0 ms** in all three cases. New maps are swapped in when ready, keeping the current look meanwhile. If the browser does not allow a worker, the maps are computed on the main thread with identical results.
+- The rainbow film is computed on a 2 CSS px grid and bilinearly interpolated; it differs from per-pixel computation by less than one colour step (largest screenshot difference 4/255) at more than ten times less work.
+
+### Browser hardware acceleration must be on
+
+Glass refraction (SVG displacement filter plus blur) is cheap on a GPU and very slow on the CPU: in the GPU-less test browser, redrawing one navigation glass takes tens of milliseconds, and scrolling or animating can take 50–170 ms per frame. If the panel is unusually slow on one computer, check:
+
+- Chrome or Edge: Settings → System → "Use graphics acceleration when available" must be on; restart the browser after changing it
+- Open `chrome://gpu` (`edge://gpu` in Edge): Canvas, Compositing, and Rasterization under Graphics Feature Status should say Hardware accelerated
+- Remote desktop, some virtual machines, and outdated drivers can make the browser fall back to software rendering
+
+### Rainbow world (light mode) costs
+
+- **Prismatic dispersion on the navigation**: the navigation's refraction filter displaces red, green, and blue separately and recombines them, about three times the displacement work. Only the navigation uses it; other glass only adds thin-film colour to its highlight map (computed once per size, with no extra per-frame cost). Measured (no GPU, CPU software rendering, 2.5 s of scrolling): median frame about 33 ms for the standard light theme versus about 50 ms for rainbow, almost entirely from dispersion. This is a worst-case relative comparison, not a frame rate for GPU-accelerated browsers.
+- **Wallpaper, pearl cards, spectrum lights**: static CSS gradients with no per-frame cost after the first paint and no new backdrop-filter.
+- **Nothing animates continuously**: the entry opening (sparks, bubbles, rainbow, prism light, jelly wave, star glints, icon reassembly; about 2.7 s) and the press bubbles play only when triggered and remove their canvas afterwards. During the opening, glass on screen is redrawn every frame at the same cost as scrolling, only at the moment of switching. Whenever something keeps changing near glass (or the browser repaints the whole screen), the glass refraction must be recomputed every frame. Continuously drifting side bubbles and a flowing loading bar were tried during development and dropped: on the test page they cut frames during pointer movement from about 117 to about 25–36.
+- **Everyone sees the same thing**: there is no reduced-quality mode for slower devices. Animations use real time, so slower devices draw fewer frames with the same speed, paths, and length. All new effects are drawn with CSS or canvas without downloading images, and animations use a fixed random seed, so everyone sees the same animation every time.
 
 ### Pixel icons and edge light
 

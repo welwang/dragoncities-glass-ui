@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { celebrateRainbow, initRainbowClicks } from '@/system-theme/rainbow-world';
 
 /**
  * 外觀：深色 / 淺色 / 跟隨系統，以及彩虹強調色。
  * - 模式：沒有手動選過（或選了「自動」）時跟隨作業系統（prefers-color-scheme）
  * - 彩虹：淺色模式專用，<html data-accent="rainbow">；深色模式時設定保留但不生效，切回淺色就恢復。
- *   外觀規則在 system-theme/appearance.css（全部以 [data-theme='light'][data-accent='rainbow'] 開頭）
+ *   外觀規則在 system-theme/appearance.css（彩虹規則以 [data-theme='light'][data-accent='rainbow'] 開頭），
+ *   進入時的慶祝動畫與按下時的泡泡在 system-theme/rainbow-world.ts
  * - 選擇記在這個瀏覽器（localStorage），下次打開沿用
  * - 色盤本身在 GlobalStylesheet：<html data-theme="light"> 換成淺色變數
  */
@@ -106,6 +108,8 @@ const reveal = (change: () => void, origin?: { x: number; y: number }): void => 
 /** 在畫面渲染前呼叫一次（index.tsx），避免先閃出另一種顏色 */
 export const initThemeMode = (): void => {
     apply(storedPreference(), storedAccent());
+    // 彩虹世界：按下按鈕、連結、開關時冒小泡泡（只在淺色 + 彩虹時播放）
+    initRainbowClicks();
 
     const follow = () => {
         if (storedPreference() === 'system') apply('system', storedAccent());
@@ -127,6 +131,8 @@ export const setThemePreference = (preference: ThemePreference, origin?: { x: nu
         return;
     }
     reveal(() => apply(preference, accent), origin);
+    /* 彩虹開著、切回淺色：重新走進彩虹世界 */
+    if (accent === 'rainbow' && resolve(preference) === 'light') celebrateRainbow(origin);
 };
 
 /** 舊介面：直接指定深色或淺色 */
@@ -142,6 +148,7 @@ export const setThemeAccent = (accent: ThemeAccent, origin?: { x: number; y: num
         write(KEY, 'light');
     }
     reveal(() => apply(preference, accent), origin);
+    if (accent === 'rainbow') celebrateRainbow(origin);
 };
 
 /** 彩虹是否正在生效（有開啟而且目前是淺色模式） */

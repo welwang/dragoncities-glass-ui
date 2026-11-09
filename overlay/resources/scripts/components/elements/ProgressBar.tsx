@@ -6,7 +6,8 @@ import { CSSTransition } from 'react-transition-group';
 import { motionDuration } from '@/system-theme/animation-speed';
 import tw from 'twin.macro';
 
-const BarFill = styled.div`
+/** 頂端載入條（彩虹世界時是一條流動的光譜，見 system-theme/appearance.css 的 .sys-progress） */
+const BarFill = styled.div.attrs({ className: 'sys-progress' } as React.HTMLAttributes<HTMLDivElement>)`
     ${tw`h-full bg-cyan-400`};
     transition: 250ms ease-in-out;
     box-shadow: 0 -2px 10px 2px hsl(178, 78%, 57%);
