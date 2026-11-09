@@ -1,0 +1,107 @@
+.stat_block {
+    @apply flex items-center rounded-xl relative;
+    @apply col-span-3 md:col-span-2 lg:col-span-6;
+    @apply px-3 py-2 md:p-3 lg:p-4;
+
+    & > .status_bar {
+        @apply w-1 h-full absolute left-0 top-0 rounded-l sm:hidden;
+    }
+
+    & > .icon {
+        @apply hidden flex-shrink-0 items-center justify-center rounded-xl w-11 h-11;
+        @apply transition-colors duration-500;
+        @apply sm:flex sm:mr-4;
+
+        & > svg {
+            @apply w-5 h-5 m-auto;
+        }
+    }
+}
+
+.terminal {
+    @apply flex flex-col w-full;
+
+    & .overflows_container {
+        @apply -ml-4 sm:ml-0;
+        width: calc(100% + 2rem);
+
+        @screen sm {
+            @apply w-full;
+        }
+    }
+
+    & > .container {
+        @apply rounded-t-xl p-2 sm:p-3 bg-black min-h-[16rem] flex-1 font-mono text-sm ring-1 ring-inset ring-white/10;
+
+        & #terminal {
+            @apply h-full;
+
+            &::-webkit-scrollbar-track {
+                @apply w-2;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                @apply bg-[#3a3a3c];
+            }
+        }
+    }
+
+    & .command_icon {
+        @apply flex items-center top-0 left-0 absolute z-10 select-none h-full px-3 transition-colors duration-100;
+    }
+
+    & .command_input {
+        /* 終端機永遠是深色，輸入列也固定深色 */
+        @apply relative bg-[#1c1c1e] px-2 text-[#f5f5f7] pl-10 pr-4 py-3 w-full font-mono text-sm sm:rounded-b-xl;
+        @apply focus:ring-0 outline-none focus-visible:outline-none;
+        @apply border-0 border-b-2 border-transparent transition-colors duration-100;
+        @apply active:border-blue-500 focus:border-blue-500;
+    }
+}
+
+/* 圖表卡片：圖表內縮在圓角裡面；標題、目前數值、圖例的排版見 ChartBlock.tsx */
+.chart_container {
+    @apply bg-gray-700 rounded-xl relative overflow-hidden flex flex-col;
+    padding: 14px 14px 10px 18px;
+}
+
+.chart_header {
+    @apply flex items-start justify-between gap-3;
+    margin-bottom: 8px;
+}
+
+.chart_title {
+    @apply font-header font-semibold text-gray-300 transition-colors duration-100;
+    font-size: 13px;
+    letter-spacing: 0.01em;
+}
+
+.chart_container:hover .chart_title {
+    @apply text-gray-100;
+}
+
+.chart_value {
+    @apply font-header font-bold text-gray-50;
+    margin-top: 1px;
+    font-size: 22px;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.chart_legend {
+    @apply flex flex-col items-end text-gray-300;
+    gap: 3px;
+    padding-top: 1px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.chart_legend > * {
+    @apply flex items-center whitespace-nowrap;
+    gap: 6px;
+}
+
+.chart_body {
+    @apply relative z-10 min-w-0;
+}

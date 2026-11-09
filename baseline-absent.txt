@@ -6,10 +6,13 @@ public/branding/motion-speed.css
 public/branding/motion-speed.js
 public/branding/panel-logo.png
 resources/scripts/components/AnimationSpeedControl.tsx
+resources/scripts/components/AppearanceMenu.tsx
 resources/scripts/components/NavigationFrame.tsx
+resources/scripts/components/elements/PixelIcon.tsx
 resources/scripts/routers/navigation-routes.ts
 resources/scripts/system-theme/Spoiler.tsx
 resources/scripts/system-theme/animation-speed.ts
+resources/scripts/system-theme/appearance.css
 resources/scripts/system-theme/liquid-glass.css
 resources/scripts/system-theme/liquid-glass.d.ts
 resources/scripts/system-theme/liquid-glass.js

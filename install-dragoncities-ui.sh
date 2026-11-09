@@ -51,16 +51,29 @@ elif sha256sum -c "$HERE/baseline.sha256" >/dev/null 2>&1 && check_absent "$HERE
     git -c core.autocrlf=false apply --check --whitespace=error "$HERE/vendor/liquid-glass-theme-v1.15.2.patch"
 elif sha256sum -c "$HERE/upgrade.sha256" >/dev/null 2>&1 && check_absent "$HERE/upgrade-absent.txt"; then
     install_mode=upgrade
-elif sha256sum -c "$HERE/prior-release.sha256" >/dev/null 2>&1 && [ -f public/branding/brand.json ]; then
-    install_mode=upgrade
 else
-    echo 'Official v1.15.2 source comparison:' >&2
-    sha256sum -c "$HERE/baseline.sha256" >&2 || true
-    echo 'Previous DragonCities UI source comparison:' >&2
-    sha256sum -c "$HERE/upgrade.sha256" >&2 || true
-    echo 'Previous packaged release source comparison:' >&2
-    sha256sum -c "$HERE/prior-release.sha256" >&2 || true
-    die 'Unrecognized frontend modifications. Restore the previous theme backup first; no forced patching was attempted.'
+    # 已發行的舊版本（known-states/*.sha256）：每個檔案都要完全符合其中一個版本，才允許直接升級
+    install_mode=
+    if [ -f public/branding/brand.json ]; then
+        for state in "$HERE"/known-states/*.sha256; do
+            if sha256sum -c "$state" >/dev/null 2>&1; then
+                install_mode=upgrade
+                echo "Recognized previous release: $(basename "$state" .sha256)"
+                break
+            fi
+        done
+    fi
+    if [ -z "$install_mode" ]; then
+        echo 'Official v1.15.2 source comparison:' >&2
+        sha256sum -c "$HERE/baseline.sha256" >&2 || true
+        echo 'Previous DragonCities UI source comparison:' >&2
+        sha256sum -c "$HERE/upgrade.sha256" >&2 || true
+        for state in "$HERE"/known-states/*.sha256; do
+            echo "Packaged release $(basename "$state" .sha256) comparison:" >&2
+            sha256sum -c "$state" >&2 || true
+        done
+        die 'Unrecognized frontend modifications. Restore the previous theme backup first; no forced patching was attempted.'
+    fi
 fi
 echo "Install mode: $install_mode"
 if [ "${1:-}" = --check ]; then echo 'Preflight passed. No panel files changed.'; exit 0; fi

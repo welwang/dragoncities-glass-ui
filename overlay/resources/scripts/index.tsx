@@ -11,6 +11,8 @@ import '../../public/branding/motion-speed.css';
 // 系統主題：液態玻璃材質與折射引擎（元素加上 className="lg" + data-glass 即生效）
 import '@/system-theme/liquid-glass.css';
 import '@/system-theme/roles.css';
+// 外觀選單與彩虹主題（<html data-accent="rainbow">）
+import '@/system-theme/appearance.css';
 import '@/system-theme/liquid-glass';
 import { initThemeMode } from '@/system-theme/theme-mode';
 

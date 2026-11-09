@@ -10,6 +10,7 @@ resources/scripts/TransitionRouter.tsx
 resources/scripts/assets/css/GlobalStylesheet.ts
 resources/scripts/components/AnimationSpeedControl.tsx
 resources/scripts/components/App.tsx
+resources/scripts/components/AppearanceMenu.tsx
 resources/scripts/components/MessageBox.tsx
 resources/scripts/components/NavigationBar.tsx
 resources/scripts/components/NavigationFrame.tsx
@@ -29,6 +30,7 @@ resources/scripts/components/elements/Input.tsx
 resources/scripts/components/elements/Label.tsx
 resources/scripts/components/elements/Modal.tsx
 resources/scripts/components/elements/PageContentBlock.tsx
+resources/scripts/components/elements/PixelIcon.tsx
 resources/scripts/components/elements/ProgressBar.tsx
 resources/scripts/components/elements/ScreenBlock.tsx
 resources/scripts/components/elements/Select.tsx
@@ -46,6 +48,7 @@ resources/scripts/components/elements/dropdown/style.module.css
 resources/scripts/components/elements/inputs/styles.module.css
 resources/scripts/components/elements/tooltip/Tooltip.tsx
 resources/scripts/components/server/WebsocketHandler.tsx
+resources/scripts/components/server/console/ChartBlock.tsx
 resources/scripts/components/server/console/Console.tsx
 resources/scripts/components/server/console/ServerDetailsBlock.tsx
 resources/scripts/components/server/console/StatBlock.tsx
@@ -68,6 +71,7 @@ resources/scripts/routers/navigation-routes.ts
 resources/scripts/routers/routes.ts
 resources/scripts/system-theme/Spoiler.tsx
 resources/scripts/system-theme/animation-speed.ts
+resources/scripts/system-theme/appearance.css
 resources/scripts/system-theme/liquid-glass.css
 resources/scripts/system-theme/liquid-glass.d.ts
 resources/scripts/system-theme/liquid-glass.js

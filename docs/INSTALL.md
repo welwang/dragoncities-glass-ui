@@ -2,7 +2,7 @@
 
 **繁體中文** | [English](INSTALL.en.md)
 
-本文件適用於 DragonCities Glass UI **1.0.3**，目標面板為 **Pterodactyl v1.15.2**。
+本文件適用於 DragonCities Glass UI **1.1.0**，目標面板為 **Pterodactyl v1.15.2**。
 
 委託助手操作請先閱讀 [AI 安裝指令、注意事項與最低能力需求](AI-INSTALL.md)。
 
@@ -56,9 +56,9 @@ npm install --global yarn@1.22.22
 
 1. 乾淨的官方 v1.15.2 前端：以 SHA256 核對既有檔案，確認新增檔案尚不存在，再以 `git apply --check --whitespace=error` 檢查基礎 patch。
 2. 可完整核對的既有 DragonCities UI：Liquid Glass v9、銀白 Logo、雙排 Bar、全局動畫速度及切頁修正的指定整合版本。
-3. 可完整核對的 DragonCities Glass UI 1.0.1／1.0.2 固定來源，且品牌設定檔存在；自訂品牌名稱與 Logo 會保留。
+3. 可完整核對的 DragonCities Glass UI 已發行版本（`known-states/` 內列出的 1.0.1／1.0.2、1.0.3 固定來源），且品牌設定檔存在；自訂品牌名稱與 Logo 會保留。安裝器會印出辨識到的版本。
 
-第二、三種來源會直接加入本版整合檔案，不重複套用基礎 patch。如果已經是相同的固定來源版本，工具會提示已安裝；更換名稱或 Logo 請使用品牌設定入口。1.0.3 移除 Logo 外層的圓形背景與內陰影，不裁切圖片。
+第二、三種來源會直接加入本版整合檔案，不重複套用基礎 patch。如果已經是相同的固定來源版本，工具會提示已安裝；更換名稱或 Logo 請使用品牌設定入口。1.0.3 移除 Logo 外層的圓形背景與內陰影，不裁切圖片。1.1.0 新增點陣深淺色開關、外觀選單與淺色模式的彩虹泡泡主題。
 
 其他舊版、第三方主題或手動修改過的檔案不保證可直接升級。若來源無法核對，安裝器會停止並列出差異，請使用原主題的還原功能或安裝前備份回復；不要使用 force、`--reject`、`--3way` 或手動修改 patch 來跳過來源核對。
 
@@ -72,7 +72,7 @@ npm install --global yarn@1.22.22
 cd ~
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.3
+git checkout v1.1.0
 sha256sum -c SHA256SUMS
 ```
 
@@ -80,11 +80,11 @@ sha256sum -c SHA256SUMS
 
 ## 下載方式二：Release ZIP
 
-到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.0.3.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
+到 [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases) 下載 `DragonCities-Glass-UI-v1.1.0.zip` 與對應 `.sha256`，上傳到主機。以連接埠 23 為例，請替換帳號、IP 與本機檔案位置：
 
 ```powershell
-scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip 帳號@主機IP:~/
-scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip.sha256 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.1.0.zip 帳號@主機IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.1.0.zip.sha256 帳號@主機IP:~/
 ssh -p 23 帳號@主機IP
 ```
 
@@ -92,10 +92,10 @@ ssh -p 23 帳號@主機IP
 
 ```bash
 cd ~
-sha256sum -c DragonCities-Glass-UI-v1.0.3.zip.sha256
+sha256sum -c DragonCities-Glass-UI-v1.1.0.zip.sha256
 mkdir -p ~/dragoncities-ui-release
-unzip DragonCities-Glass-UI-v1.0.3.zip -d ~/dragoncities-ui-release
-cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.3
+unzip DragonCities-Glass-UI-v1.1.0.zip -d ~/dragoncities-ui-release
+cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.1.0
 sha256sum -c SHA256SUMS
 ```
 
@@ -198,6 +198,15 @@ bash configure-brand.sh
 tar -xzf /root/ptero-brand-backup-YYYYMMDD-HHMMSS.tar.gz -C /var/www/pterodactyl
 ```
 
+## 深淺色開關、外觀選單與彩虹主題
+
+- **導覽列的點陣開關**：切換淺色／深色。切換時點陣的太陽／月亮會散開再重組，圓鈕邊緣的光跟著游標。
+- **旁邊的 ▾** 打開「外觀」選單：
+  - **跟隨系統**：跟隨作業系統；關掉時維持目前的模式。
+  - **彩虹**：淺色模式的彩虹泡泡主題。在深色模式打開會一起切到淺色；切回深色時設定保留但暫停，回到淺色就恢復。
+
+選擇只記在各自的瀏覽器，不影響其他使用者。開關、設定開關與彩虹的外觀在 `resources/scripts/system-theme/appearance.css`（彩虹規則以 `[data-theme='light'][data-accent='rainbow']` 開頭），點陣圖示與邊緣光在 `resources/scripts/components/elements/PixelIcon.tsx`；修改後需要重新建置前端。
+
 ## 完整還原
 
 使用整合安裝器產生的實際備份檔：
@@ -241,7 +250,7 @@ PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh \
 python3 tools/build-release.py
 ```
 
-需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.0.3.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
+需要 Python 3.10 以上與 Git。此命令使用 Git 追蹤檔案產生包內 `SHA256SUMS`、`dist/DragonCities-Glass-UI-v1.1.0.zip` 及 ZIP 的校驗碼，不會操作面板或連線主機。
 
 ## 授權與署名
 

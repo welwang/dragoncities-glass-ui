@@ -104,6 +104,9 @@
 /* 自適應：淺色模式下玻璃列浮在深色內容上時（liquid-glass.js 加上 .lg-over-dark），
    像 iOS 一樣轉成深色玻璃、白色文字；色階變數由 GlobalStylesheet 換成深色那一套 */
 [data-theme='light'] .lg-over-dark {
+    /* 繼承文字顏色的元素（品牌名稱、伺服器說明、速度數值都是 color: inherit）跟著變白；
+       沒有這行它們會繼承頁面的深色字，在深色玻璃上幾乎看不見 */
+    color: rgb(var(--c-gray-100));
     --lg-fill-top: rgba(44, 44, 50, 0.5);
     --lg-fill: rgba(28, 28, 32, 0.38);
     --lg-hairline: rgba(255, 255, 255, 0.14);

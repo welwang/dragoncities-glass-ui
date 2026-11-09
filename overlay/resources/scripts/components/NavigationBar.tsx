@@ -2,8 +2,8 @@ import * as React from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCogs, faLayerGroup, faMoon, faSignOutAlt, faSun } from '@fortawesome/free-solid-svg-icons';
-import { useThemeMode } from '@/system-theme/theme-mode';
+import { faCogs, faLayerGroup, faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import AppearanceMenu from '@/components/AppearanceMenu';
 import { useStoreState } from 'easy-peasy';
 import { ApplicationStore } from '@/state';
 import SearchContainer from '@/components/dashboard/search/SearchContainer';
@@ -64,8 +64,6 @@ export default ({ children, server }: Props) => {
     const previousTabs = useRef(children);
     useEffect(() => { if (children) previousTabs.current = children; }, [children]);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [mode, setMode] = useThemeMode();
-    const nextMode = mode === 'dark' ? 'light' : 'dark';
 
     const onTriggerLogout = () => {
         setIsLoggingOut(true);
@@ -110,14 +108,8 @@ export default ({ children, server }: Props) => {
                 </div>
                 <RightNavigation className={'flex h-full items-center justify-center gap-0.5'}>
                     <SearchContainer />
-                    <Tooltip placement={'bottom'} content={mode === 'dark' ? 'Light Mode' : 'Dark Mode'}>
-                        <button
-                            aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                            onClick={(e) => setMode(nextMode, { x: e.clientX, y: e.clientY })}
-                        >
-                            <FontAwesomeIcon key={mode} icon={mode === 'dark' ? faSun : faMoon} className={'sys-swap'} />
-                        </button>
-                    </Tooltip>
+                    {/* 外觀：淺色 / 深色 / 自動 + 彩虹 */}
+                    <AppearanceMenu />
                     <Tooltip placement={'bottom'} content={'Dashboard'}>
                         <NavLink to={'/'} exact className={'nav-dashboard'}>
                             <FontAwesomeIcon icon={faLayerGroup} />

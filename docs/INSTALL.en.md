@@ -2,7 +2,7 @@
 
 [繁體中文](INSTALL.md) | **English**
 
-This guide covers DragonCities Glass UI **1.0.3** for **Pterodactyl Panel v1.15.2**.
+This guide covers DragonCities Glass UI **1.1.0** for **Pterodactyl Panel v1.15.2**.
 
 For delegated installation, read the [AI task prompt, precautions, and minimum capabilities](AI-INSTALL.en.md).
 
@@ -56,9 +56,9 @@ The installer accepts three source states:
 
 1. A clean official v1.15.2 frontend: existing files are checked by SHA256, new files must be absent, and the base patch must pass `git apply --check --whitespace=error`.
 2. The recognized previous DragonCities UI integration: Liquid Glass v9, the silver logo, two-row bar, global animation speed, and page-transition fix, with all expected file hashes matching.
-3. The matching fixed sources from DragonCities Glass UI 1.0.1/1.0.2, with a branding configuration present; custom brand names and logos are retained.
+3. A matching published DragonCities Glass UI release (the 1.0.1/1.0.2 and 1.0.3 fixed sources listed in `known-states/`), with a branding configuration present; custom brand names and logos are retained. The installer prints the recognized release.
 
-For the second and third states, the installer adds the integrated files without applying the base patch again. If the same fixed source version is already installed, it reports that state; use the branding tool to change a name or logo. Version 1.0.3 removes the logo wrapper's circular background and inset shadow without cropping the image.
+For the second and third states, the installer adds the integrated files without applying the base patch again. If the same fixed source version is already installed, it reports that state; use the branding tool to change a name or logo. Version 1.0.3 removes the logo wrapper's circular background and inset shadow without cropping the image. Version 1.1.0 adds the pixel light/dark toggle, the Appearance menu, and the light-mode rainbow bubble theme.
 
 Other old themes, third-party themes, and manually edited files are not guaranteed to upgrade directly. Unrecognized sources cause the installer to stop and report differences. Restore with the previous theme's uninstaller or pre-installation backup. Do not bypass compatibility checks with force, `--reject`, `--3way`, or patch edits.
 
@@ -72,7 +72,7 @@ Download into your home directory or another location outside the panel:
 cd ~
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.3
+git checkout v1.1.0
 sha256sum -c SHA256SUMS
 ```
 
@@ -80,11 +80,11 @@ A fixed tag avoids later unreleased changes. Read the source and this guide befo
 
 ## Download option 2: Release ZIP
 
-Download `DragonCities-Glass-UI-v1.0.3.zip` and its `.sha256` from [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases), then upload both to your host. These examples use port 23; replace the account, host address, port, and local paths as needed:
+Download `DragonCities-Glass-UI-v1.1.0.zip` and its `.sha256` from [GitHub Releases](https://github.com/welwang/dragoncities-glass-ui/releases), then upload both to your host. These examples use port 23; replace the account, host address, port, and local paths as needed:
 
 ```powershell
-scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip user@HOST_IP:~/
-scp -P 23 .\DragonCities-Glass-UI-v1.0.3.zip.sha256 user@HOST_IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.1.0.zip user@HOST_IP:~/
+scp -P 23 .\DragonCities-Glass-UI-v1.1.0.zip.sha256 user@HOST_IP:~/
 ssh -p 23 user@HOST_IP
 ```
 
@@ -92,10 +92,10 @@ On Linux, verify and extract:
 
 ```bash
 cd ~
-sha256sum -c DragonCities-Glass-UI-v1.0.3.zip.sha256
+sha256sum -c DragonCities-Glass-UI-v1.1.0.zip.sha256
 mkdir -p ~/dragoncities-ui-release
-unzip DragonCities-Glass-UI-v1.0.3.zip -d ~/dragoncities-ui-release
-cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.0.3
+unzip DragonCities-Glass-UI-v1.1.0.zip -d ~/dragoncities-ui-release
+cd ~/dragoncities-ui-release/dragoncities-glass-ui-1.1.0
 sha256sum -c SHA256SUMS
 ```
 
@@ -198,6 +198,15 @@ Before each change, `public/branding` is backed up to `ptero-brand-backup-DATE.t
 tar -xzf /root/ptero-brand-backup-YYYYMMDD-HHMMSS.tar.gz -C /var/www/pterodactyl
 ```
 
+## Light/dark toggle, Appearance menu, and rainbow theme
+
+- **Pixel toggle** in the navigation: switches between light and dark. Its dot-matrix sun or moon reassembles when it flips, and the light on the knob's edge follows the pointer.
+- **▾ next to it** opens the Appearance menu:
+  - **Follow system**: follows the operating system; switching it off keeps the current mode.
+  - **Rainbow**: the light-mode rainbow bubble theme. Turning it on in dark mode also switches to light; switching back to dark keeps the setting but pauses it until light mode returns.
+
+Choices are stored per browser and do not affect other users. The toggle, switch, and rainbow styling live in `resources/scripts/system-theme/appearance.css` (rainbow rules start with `[data-theme='light'][data-accent='rainbow']`), and the pixel icons and edge light are in `resources/scripts/components/elements/PixelIcon.tsx`; rebuild the frontend after editing them.
+
 ## Full restore
 
 Use the actual backup created by the integrated installer:
@@ -241,7 +250,7 @@ Maintainers can run this in a clean, reviewed Git working directory:
 python3 tools/build-release.py
 ```
 
-Python 3.10+ and Git are required. The command uses tracked files to generate `SHA256SUMS`, `dist/DragonCities-Glass-UI-v1.0.3.zip`, and the ZIP checksum. It does not operate on the panel or connect to a host.
+Python 3.10+ and Git are required. The command uses tracked files to generate `SHA256SUMS`, `dist/DragonCities-Glass-UI-v1.1.0.zip`, and the ZIP checksum. It does not operate on the panel or connect to a host.
 
 ## License and attribution
 

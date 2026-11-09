@@ -55,8 +55,24 @@
   function profile(x) { var u = 1 - x; return u * u * Math.sqrt(u); }      // (1-x)^2.5
   var MAX_SLOPE = 2.5;                                                     // profile 在 x=0 的斜率
 
-  /* 依元素尺寸產生兩張圖：位移圖（R,G = 方向）與鏡面圖（白光，alpha = 亮度） */
-  function buildMaps(w, h, radius, bezel, spec, lens) {
+  /* 泡泡主題：肥皂泡的薄膜干涉色。
+   - 膜厚 d（奈米）在表面上緩慢流動（用 CSS 像素當單位，寬的玻璃列不會被拉長），越往下越厚（像泡泡的膜往下流）
+   - 反射光強度 I = sin²(2π·n·d / λ)，紅綠藍各用自己的波長 → 金、洋紅、藍、綠交替的泡泡色
+   - 只取三色之間的差（色相），加在淡淡的白上，所以是透明的虹彩，不是塗上去的顏色 */
+  function filmColor(px, py, hh) {
+    var d = 430 + 120 * Math.sin(px / 260 + 1.1 * Math.sin(py / 90 + px / 520))
+      + 80 * Math.sin(py / 70 - px / 430 + 0.7) + 70 * (py / hh);
+    var o = 2 * Math.PI * 1.33 * d;
+    var r = Math.pow(Math.sin(o / 650), 2), g = Math.pow(Math.sin(o / 540), 2), b = Math.pow(Math.sin(o / 450), 2);
+    var m = (r + g + b) / 3;
+    var c = function (v) { return Math.max(0, Math.min(1, 0.76 + 0.8 * (v - m))); };
+    return [c(r), c(g), c(b), Math.max(Math.abs(r - m), Math.abs(g - m), Math.abs(b - m))];
+  }
+
+  /* 依元素尺寸產生兩張圖：位移圖（R,G = 方向）與鏡面圖（白光，alpha = 亮度）。
+     film = true（泡泡主題）：整片玻璃再疊一層薄膜干涉色——中間極淡、越靠近邊緣越明顯（掠射角反射較強），
+     白色鏡面高光仍在最上層 */
+  function buildMaps(w, h, radius, bezel, spec, lens, film) {
     /* 依螢幕倍率產生，長邊最多 2400px：低解析度貼圖放大是邊緣鋸齒的主因 */
     var dpr = Math.min(2, global.devicePixelRatio || 1);
     var k = Math.min(dpr, 2400 / Math.max(w, h));
@@ -102,7 +118,21 @@
           D[i] = 128 - nx * m * 127; D[i + 1] = 128 - ny * m * 127;
         }
         D[i + 2] = 128; D[i + 3] = 255;
-        S[i] = S[i + 1] = S[i + 2] = 255; S[i + 3] = Math.round(a * 255);
+        if (film && dist >= 0) {
+          /* 薄膜：中間約 2%（幾乎透明），靠近邊緣 28px 內往外增強到約 30%（泡泡邊緣顏色最濃）；顏色越飽和的地方越看得到 */
+          var fc = filmColor(px, py, hh), edge = Math.pow(Math.max(0, 1 - dist / Math.min(28, hh)), 2);
+          var fa = (0.02 + 0.28 * edge) * (0.5 + 0.8 * fc[3]) * Math.min(1, dist * k + 0.5);
+          fa = Math.min(0.32, fa);
+          /* 白色高光（a）疊在薄膜（fa）上面 */
+          var oa = a + fa * (1 - a);
+          S[i] = Math.round(255 * (a + fc[0] * fa * (1 - a)) / (oa || 1));
+          S[i + 1] = Math.round(255 * (a + fc[1] * fa * (1 - a)) / (oa || 1));
+          S[i + 2] = Math.round(255 * (a + fc[2] * fa * (1 - a)) / (oa || 1));
+          S[i + 3] = Math.round(oa * 255);
+        } else {
+          S[i] = S[i + 1] = S[i + 2] = 255;
+          S[i + 3] = Math.round(a * 255);
+        }
       }
     }
     dctx.putImageData(di, 0, 0); sctx.putImageData(si, 0, 0);
@@ -116,9 +146,25 @@
     return n;
   }
 
+  /* 色散：紅、綠、藍三個通道各自用不同的折射量位移，再合回一張圖。
+     折射越強的地方（玻璃厚邊、透鏡邊緣）三色分得越開，就出現像稜鏡一樣的彩虹邊；中間位移為 0，影像不受影響。
+     amount = 綠、藍比紅色少折的比例（0.3 = 綠 85%、藍 70%）。
+     任何一個通道都不會比原本折得多：原本的強度上限（避免字被折疊）仍然成立 */
+  function disperse(f, input, map, scale, amount, out) {
+    var ch = [['R', 1, '1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0'],
+              ['G', 1 - amount / 2, '0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0'],
+              ['B', 1 - amount, '0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0']];
+    ch.forEach(function (c) {
+      mk('feDisplacementMap', { in: input, in2: map, scale: +(scale * c[1]).toFixed(2), xChannelSelector: 'R', yChannelSelector: 'G', result: out + c[0] + 'd' }, f);
+      mk('feColorMatrix', { in: out + c[0] + 'd', type: 'matrix', values: c[2], result: out + c[0] }, f);
+    });
+    mk('feComposite', { in: out + 'R', in2: out + 'G', operator: 'arithmetic', k1: 0, k2: 1, k3: 1, k4: 0, result: out + 'RG' }, f);
+    mk('feComposite', { in: out + 'RG', in2: out + 'B', operator: 'arithmetic', k1: 0, k2: 1, k3: 1, k4: 0, result: out }, f);
+  }
+
   function makeFilter(key, w, h, o) {
     var id = 'lg' + (++seq);
-    var maps = buildMaps(w, h, o.radius, o.bezel, o.spec, o.lens);
+    var maps = buildMaps(w, h, o.radius, o.bezel, o.spec, o.lens, o.iris);
     var f = mk('filter', {
       id: id, x: '0', y: '0', width: w, height: h,
       filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse',
@@ -126,7 +172,8 @@
     }, ensureSvg());
     mk('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: o.blur, edgeMode: 'duplicate', result: 'b' }, f);
     mk('feImage', { href: maps.disp, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'd' }, f);
-    mk('feDisplacementMap', { in: 'b', in2: 'd', scale: o.scale, xChannelSelector: 'R', yChannelSelector: 'G', result: 'r' }, f);
+    if (o.disperse > 0) disperse(f, 'b', 'd', o.scale, o.disperse, 'r');
+    else mk('feDisplacementMap', { in: 'b', in2: 'd', scale: o.scale, xChannelSelector: 'R', yChannelSelector: 'G', result: 'r' }, f);
     mk('feImage', { href: maps.spec, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 's' }, f);
     mk('feComposite', { in: 's', in2: 'r', operator: 'over' }, f);
     var rec = { id: id, node: f, refs: 0 };
@@ -139,6 +186,15 @@
    * 位移圖依整條玻璃列產生，每個子元素用自己的偏移對齊同一張圖。 */
   var contentMaps = new Map();       // key -> { url, ready }
   var contentFilters = new Map();    // key -> { id, node, refs }
+  /* 位移圖放進濾鏡：先鋪一層中性灰（128 = 不位移）再疊上位移圖。
+     濾鏡範圍比位移圖寬（左右留空間給被推出去的字）；沒有這層底的話，超出位移圖的地方會被當成 0，
+     也就是「往左上各位移半個強度」，透鏡裡的字會被複製到透鏡右下角外面（殘字 bug） */
+  function mapImage(f, href, x, y, w, h, result) {
+    mk('feFlood', { 'flood-color': 'rgb(128,128,128)', 'flood-opacity': 1, result: result + 'n' }, f);
+    mk('feImage', { href: href, x: x, y: y, width: w, height: h, preserveAspectRatio: 'none', result: result + 'i' }, f);
+    mk('feComposite', { in: result + 'i', in2: result + 'n', operator: 'over', result: result }, f);
+  }
+
   function contentMap(w, h, radius, bezel, exp) {
     var key = [w, h, radius, bezel, exp].join('|');
     if (contentMaps.has(key)) return contentMaps.get(key);
@@ -189,7 +245,7 @@
         /* 濾鏡範圍往左右各多留一段：被推向邊緣的字可以畫到元素外面，不會被切掉 */
         var pad = Math.ceil(S / 2) + 4;
         var f = mk('filter', { id: id, x: -pad, y: 0, width: cw + pad * 2, height: ch, filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, ensureSvg());
-        mk('feImage', { href: map.url, x: -ox, y: -oy, width: w, height: h, preserveAspectRatio: 'none', result: 'm' }, f);
+        mapImage(f, map.url, -ox, -oy, w, h, 'm');
         mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'm', scale: S, xChannelSelector: 'R', yChannelSelector: 'G' }, f);
         rec = { id: id, node: f, refs: 0 };
         contentFilters.set(key, rec);
@@ -228,7 +284,12 @@
       /* 霧化程度：元素屬性優先，否則讀 CSS 變數 --lg-frost（深色 / 淺色各自設定） */
       blur: attrNum(node, 'blur', parseFloat(getComputedStyle(node).getPropertyValue('--lg-frost')) || 1.2),
       /* 高光強度：元素屬性優先，否則讀 CSS 變數 --lg-spec（深色 / 淺色各自設定） */
-      spec: Math.max(0, Math.min(1, attrNum(node, 'spec', parseFloat(getComputedStyle(node).getPropertyValue('--lg-spec')) || 0.55)))
+      spec: Math.max(0, Math.min(1, attrNum(node, 'spec', parseFloat(getComputedStyle(node).getPropertyValue('--lg-spec')) || 0.55))),
+      /* 泡泡主題（appearance.css 設定，見該檔說明）：
+         --lg-iris      1 = 玻璃本身帶肥皂泡的薄膜干涉色（只改高光圖，不增加每幀的成本）
+         --lg-disperse  紅綠藍分開折射的比例（稜鏡色散；每多一個元素多兩次位移運算，只給導覽列） */
+      iris: (parseFloat(cs.getPropertyValue('--lg-iris')) || 0) > 0,
+      disperse: Math.max(0, Math.min(0.6, parseFloat(cs.getPropertyValue('--lg-disperse')) || 0))
     };
     /* data-glass-magnify > 1：透鏡（放大 + 邊緣折射），用於選取膠囊移動時 */
     var mag = attrNum(node, 'magnify', 1);
@@ -238,7 +299,7 @@
       o.scale = +S.toFixed(2);
       o.lens = { mag: mag, eo: eo, S: S };
     }
-    var key = [w, h, radius, o.bezel, o.scale, o.blur, o.spec, mag].join('|');
+    var key = [w, h, radius, o.bezel, o.scale, o.blur, o.spec, mag, o.iris ? 1 : 0, o.disperse].join('|');
     if (tracked.get(node) === key) { if (node.classList.contains('sys-bar')) updateContent(node, w, h, radius); return; }
     var rec = filters.get(key) || makeFilter(key, w, h, o);
     rec.refs++;
@@ -322,14 +383,17 @@
   function lensEdgeFilter(w, h) {
     var bezel = Math.round(Math.min(h * 0.6, 30)), exp = 1.6;
     var S = +(0.55 * 2 * bezel / exp).toFixed(2);
-    var key = 'lens|' + [w, h, bezel, S].join('|');
+    /* 彩虹主題：透鏡邊緣的字分出紅綠藍三色（彩虹色散），讀 <html> 上的 --lg-lens-disperse */
+    var D = Math.max(0, Math.min(0.8, parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--lg-lens-disperse')) || 0));
+    var key = 'lens|' + [w, h, bezel, S, D].join('|');
     var rec = contentFilters.get(key);
     var map = contentMap(w, h, h / 2, bezel, exp);
     if (!rec) {
       var id = 'lgl' + (++seq), pad = Math.ceil(S / 2) + 4;
       var f = mk('filter', { id: id, x: -pad, y: 0, width: w + pad * 2, height: h, filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse', 'color-interpolation-filters': 'sRGB' }, ensureSvg());
-      mk('feImage', { href: map.url, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'm' }, f);
-      mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'm', scale: S, xChannelSelector: 'R', yChannelSelector: 'G' }, f);
+      mapImage(f, map.url, 0, 0, w, h, 'm');
+      if (D > 0) disperse(f, 'SourceGraphic', 'm', S, D, 'o');
+      else mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'm', scale: S, xChannelSelector: 'R', yChannelSelector: 'G' }, f);
       rec = { id: id, node: f, refs: 1, map: map };
       contentFilters.set(key, rec);
     }
@@ -434,7 +498,9 @@
     var b = run.to.getBoundingClientRect();
     var tx = b.left + b.width / 2;
     var speed = global.PanelMotion.getSpeed();
-    var dt = Math.min(0.05, Math.max(0.001, (now - st.last) / 1000)) * speed; st.last = now;
+    /* 每幀最多推進 0.12 秒：彈簧每 4ms 細分一步，大步長也穩定；
+       低幀率（例如省電或軟體繪圖）時透鏡仍照真實時間抵達，不會變成慢動作拖很久 */
+    var dt = Math.min(0.12, Math.max(0.001, (now - st.last) / 1000)) * speed; st.last = now;
     run.elapsed += dt * 1000;
 
     /* 位置與寬度：剛度 230、阻尼比 0.86，略有過衝但不晃 */
@@ -656,9 +722,9 @@
     onScroll();
     addEventListener('scroll', adapt, { passive: true, capture: true });
     addEventListener('resize', adapt, { passive: true });
-    /* 深色 / 淺色切換時：高光強度不同要重算，並重新判斷背景明暗 */
+    /* 深色 / 淺色、彩虹切換時：高光強度、色散不同要重算，並重新判斷背景明暗 */
     new MutationObserver(function () { global.LiquidGlass.refresh(); adapt(); })
-      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+      .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'data-accent'] });
     adapt();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { indicators(); global.LiquidGlass.refresh(); });
     addEventListener('load', indicators);

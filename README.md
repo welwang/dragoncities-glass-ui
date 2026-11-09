@@ -10,7 +10,9 @@ A glass-style interface and configurable branding for Pterodactyl Panel v1.15.2.
 
 ## 功能
 
-- 深色／淺色玻璃介面，可記住各瀏覽器的選擇。
+- 深色／淺色玻璃介面。導覽列的點陣深淺色開關：切換時像素散開再重組成太陽／月亮，圓鈕邊緣的光跟著游標轉動；旁邊的 ▾ 可選跟隨系統與彩虹，並記住各瀏覽器的選擇。
+- 同款點陣特效也用在所有設定開關（✓／○）與控制台的霧化按鈕（眼睛）；玻璃在游標經過時邊緣亮起細光。
+- **彩虹泡泡玻璃（淺色模式）**：只改玻璃材質——玻璃像肥皂泡，薄膜干涉色中間幾乎透明、越靠邊緣越明顯；導覽列玻璃有輕微稜鏡色散。按鈕、開關等介面元素維持原樣。
 - 統一的雙排導覽列：上排品牌與操作，下排伺服器分頁；一排／兩排之間平滑切換。
 - 分頁透鏡動畫、玻璃伺服器卡片、選單與對話框。
 - 全局動畫速度拉桿：0.25×～1.5×，預設 0.5×。
@@ -34,7 +36,7 @@ A glass-style interface and configurable branding for Pterodactyl Panel v1.15.2.
 ```bash
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.0.3
+git checkout v1.1.0
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 ```
@@ -100,6 +102,8 @@ vendor/                   原始基礎主題 patch、腳本與說明
 docs/INSTALL.md            完整安裝文件
 FILES.json                面板目標檔案清單
 *.sha256 / *-absent.txt    安裝來源與完整性核對表
+known-states/             可直接升級的已發行版本指紋
+CHANGELOG.md              更新紀錄
 ```
 
 原始基礎 patch 與腳本保留原內容。請使用整合入口安裝與還原，不要另行執行 `vendor/` 內的腳本。

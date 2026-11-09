@@ -42,20 +42,37 @@ const StatusIndicatorBox = styled(GreyRowBox)<{ $status: ServerPowerState | unde
         box-shadow: inset 0 0 0 0.5px var(--lg-hairline);
     }
 
-    & .status-bar {
-        ${tw`w-2 bg-red-500 absolute right-0 z-20 rounded-full m-1 opacity-50 transition-all duration-150`};
-        height: calc(100% - 0.5rem);
+    /* 右側狀態燈：細膠囊放在卡片內側、垂直置中，長度扣掉上下圓角，不會碰到或凸出圓角；
+       右邊留出空間，磁碟用量的字不會貼到它 */
+    && {
+        padding-right: 2rem;
+    }
 
-        ${({ $status }) =>
+    & .status-bar {
+        --status: ${({ $status }) =>
             !$status || $status === 'offline'
-                ? tw`bg-red-500`
+                ? 'var(--c-red-500)'
                 : $status === 'running'
-                ? tw`bg-green-500`
-                : tw`bg-yellow-500`};
+                ? 'var(--c-green-500)'
+                : 'var(--c-yellow-500)'};
+        position: absolute;
+        z-index: 20;
+        top: 50%;
+        right: 12px;
+        width: 4px;
+        height: max(1.25rem, calc(100% - var(--lg-radius, 24px) * 2));
+        border-radius: 9999px;
+        background: rgb(var(--status));
+        box-shadow: 0 0 10px rgb(var(--status) / 0.55);
+        opacity: 0.8;
+        transform: translateY(-50%);
+        pointer-events: none;
+        transition: opacity 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease;
     }
 
     &:hover .status-bar {
-        ${tw`opacity-75`};
+        opacity: 1;
+        box-shadow: 0 0 14px rgb(var(--status) / 0.7);
     }
 `;
 

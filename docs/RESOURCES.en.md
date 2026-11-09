@@ -101,6 +101,20 @@ The slider changes playback rate and spring simulation time, not the display's u
 
 For example, the code's 2000ms simulation-time cutoff can correspond to about eight seconds at 0.25× with normal frame intervals; stalls can make it longer, while normal convergence ends it sooner. The slider controls visibility and preference, not an energy-saving mode.
 
+### Rainbow bubble theme (light mode) costs
+
+- **Prismatic dispersion on the navigation bar**: its refraction filter displaces the red, green, and blue channels separately and recombines them, roughly three times the displacement work. Only the navigation bar uses it; server cards, menus, and other glass only gain thin-film colour in their highlight texture (computed once per size, no per-frame cost), with the same filter steps.
+- **Tab lens**: text inside the lens is not dispersed (splitting black text on a white lens only produces ghosting). The bubble theme adds no continuously running animation.
+- **The selection pill and tab lens** use CSS gradients for their bubble colour; no backdrop filters are added, and buttons and other controls are unchanged.
+- **Measurement**: scrolling the same test page for 2.5 seconds in headless Chromium with CPU software rendering (no GPU), the median frame time was about 33 ms for the standard light theme and about 50 ms with the rainbow theme; nearly all of the extra cost comes from the navigation bar's prismatic dispersion. If scrolling stutters on slow devices, set `--lg-disperse` to `0` for `.sys-nav-shell` in `appearance.css` and rebuild. This is a worst-case relative comparison, not a frame-rate figure for GPU-accelerated browsers. On slow devices, turn the rainbow theme off or use dark mode, which never applies it.
+
+### Pixel icons and edge light
+
+- **Pixel icons** (light/dark toggle, settings switches, console frost button) are small 13 × 13 canvases. Only the moment of switching plays a pixel-reassembly animation of about 0.7 seconds (scaled by the global animation speed); otherwise they are static and add no per-frame cost. When the theme changes, they repaint for a few frames so their colour follows the transition.
+- **The edge light** is a CSS gradient and mask; the script only writes the angle and position when the pointer moves (coalesced to at most once per frame). The navigation toggle follows the pointer across the page; settings switches only follow it while the pointer is near them, so pages with many switches do not recompute all of them on every move.
+- **The thin rim on glass** reuses the pointer position the glass already tracks; no new listeners are added.
+- With the system's reduced-motion setting, icons switch instantly and the edge light stays at a fixed angle.
+
 ### Logo decoding
 
 The default logo is 1254×1254. One full-resolution RGBA buffer is `1254 × 1254 × 4`, approximately **6.00 MiB**, even if displayed as a small navigation icon. A browser may downsample, share the image, or retain additional copies, so this is not a guarantee of actual memory use.
