@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
  * 點陣圖示與邊緣光（系統主題共用）
  *
  * PixelIcon：13 × 13 格的點陣圖示。icon 改變時，像素散開成光點、沿弧線飛到新位置重組成另一個圖示；
- *            多出來的像素淡入／淡出。時間跟著全域動畫速度（PanelMotion），系統「減少動態效果」時直接換圖。
+ *            多出來的像素淡入／淡出。進入彩虹世界時，像素從四周飛進來重新組成圖示（由近到遠依序）。時間跟著全域動畫速度（PanelMotion），系統「減少動態效果」時直接換圖。
  * useEdgeGlow：在元素上寫入 --tt-a（角度）、--tt-bx / --tt-by（邊緣上的位置），
  *            讓 CSS（system-theme/appearance.css 的 .sys-edge-glow）畫出跟著游標移動的邊緣光。
  */
@@ -95,6 +95,19 @@ const shuffle = <T,>(list: T[]): T[] => {
 
 const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
+/** 彩虹世界（淺色 + 彩虹）：點陣圖示的每一顆像素依位置取光譜上的顏色 */
+const rainbowWorld = (): boolean => {
+    const root = document.documentElement;
+    return root.getAttribute('data-theme') === 'light' && root.getAttribute('data-accent') === 'rainbow';
+};
+
+/** CSS 顏色字串的透明度（關閉狀態的圖示是半透明，彩虹色也要保留這個深淺） */
+const alphaOf = (color: string): number => {
+    const m = color.match(/rgba?\(([^)]+)\)/);
+    const parts = m ? m[1].split(/[,/\s]+/).filter(Boolean) : [];
+    return parts.length > 3 ? parseFloat(parts[3]) : 1;
+};
+
 export const reducedMotion = (): boolean =>
     typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -111,20 +124,54 @@ const PixelIcon = ({ icon, size = 21, className }: PixelIconProps) => {
     // 目前的靜止畫面：深淺色切換後用新顏色重畫（圖示只在形狀改變時才會自己重畫）
     const redraw = useRef<(() => void) | null>(null);
     const animating = useRef(false);
+    // 重播「飛進來重組」的動畫（進入彩虹世界時由 rainbow-world.ts 觸發）
+    const play = useRef<(() => void) | null>(null);
+
+    useEffect(() => {
+        let timer = 0;
+        const onEnter = (e: Event) => {
+            const el = canvas.current;
+            if (!el || !play.current) return;
+            // 由近到遠：離點擊位置越遠的圖示越晚開始，像一道波傳出去
+            const o = (e as CustomEvent<{ x: number; y: number }>).detail || { x: 0, y: 0 };
+            const r = el.getBoundingClientRect();
+            if (!r.width) return;
+            const dist = Math.hypot(r.left + r.width / 2 - o.x, r.top + r.height / 2 - o.y);
+            const speed = window.PanelMotion ? window.PanelMotion.getSpeed() : 1;
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => play.current && play.current(), (180 + dist / 1.5) / Math.max(0.1, speed));
+        };
+        window.addEventListener('sys-rainbow-enter', onEnter);
+        return () => {
+            window.clearTimeout(timer);
+            window.removeEventListener('sys-rainbow-enter', onEnter);
+        };
+    }, []);
 
     useEffect(() => {
         // 切換深淺色時，圖示的顏色通常有 CSS 轉場（會跟著全域動畫速度變慢），
-        // 所以在轉場期間每一幀都用目前的顏色重畫，直到顏色穩定
+        // 所以在轉場期間每一幀都用目前的顏色重畫，直到顏色穩定。
+        // 顏色字串沒變的那一幀就不重畫：畫布內容已經是同一個顏色，畫面完全一樣，
+        // 但省掉一次重繪（圖示在玻璃裡，重繪會讓那整片玻璃的折射重新計算）
         let raf = 0;
         let until = 0;
+        let painted = '';
         const loop = (now: number) => {
             raf = 0;
-            if (!animating.current && redraw.current) redraw.current();
+            const el = canvas.current;
+            if (el && !animating.current && redraw.current) {
+                const color = getComputedStyle(el).color;
+                if (color !== painted) {
+                    painted = color;
+                    redraw.current();
+                }
+            }
             if (now < until) raf = requestAnimationFrame(loop);
         };
         const onTheme = () => {
             const speed = window.PanelMotion ? window.PanelMotion.getSpeed() : 1;
             until = performance.now() + 900 / Math.max(0.1, speed);
+            painted = '';                                  // 第一幀一定要重畫（新的顏色說不定和舊的一樣）
             if (!raf) raf = requestAnimationFrame(loop);
         };
         window.addEventListener('sys-theme-change', onTheme);
@@ -149,10 +196,15 @@ const PixelIcon = ({ icon, size = 21, className }: PixelIconProps) => {
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, size, size);
             // 顏色跟著 CSS 的 color（切換深淺色的過程中也會跟著變）
-            ctx.fillStyle = getComputedStyle(el).color;
+            const color = getComputedStyle(el).color;
+            // 彩虹世界：每顆像素依位置（左上 → 右下）取光譜色；飛行中的像素跟著位置變色
+            const rainbow = rainbowWorld();
+            const base = rainbow ? alphaOf(color) : 1;
+            ctx.fillStyle = color;
             points.forEach((p) => {
                 if (p.a <= 0) return;
-                ctx.globalAlpha = Math.min(1, p.a);
+                ctx.globalAlpha = Math.min(1, p.a) * base;
+                if (rainbow) ctx.fillStyle = `hsl(${Math.round(((p.x + p.y) / (2 * (GRID - 1))) * 300)}, 88%, 52%)`;
                 ctx.fillRect(p.x * cell + (cell - dot) / 2, p.y * cell + (cell - dot) / 2, dot, dot);
             });
             ctx.globalAlpha = 1;
@@ -163,65 +215,78 @@ const PixelIcon = ({ icon, size = 21, className }: PixelIconProps) => {
         shown.current = target;
         const still = () => draw(target.map(([x, y]) => ({ x, y, a: 1 })));
         redraw.current = still;
+
+        let raf = 0;
+        /* 從 source 的像素飛到目前圖示：spread = 弧線往外散開的程度，ms = 動畫長度（跟著全域動畫速度） */
+        const run = (source: Dot[], spread: number, ms: number) => {
+            cancelAnimationFrame(raf);
+            // 配對：多出來的像素從舊圖示裡長出來（淡入），或飛向新圖示時淡出
+            const a = shuffle(source);
+            const b = shuffle(target);
+            const n = Math.max(a.length, b.length);
+            const particles: Particle[] = [];
+            for (let i = 0; i < n; i++) {
+                const s = a[i % a.length];
+                const e = b[i % b.length];
+                const mx = (s[0] + e[0]) / 2;
+                const my = (s[1] + e[1]) / 2;
+                // 散開：中點往外推一點再加上隨機偏移
+                particles.push({
+                    x0: s[0],
+                    y0: s[1],
+                    x1: e[0],
+                    y1: e[1],
+                    cx: mx + (mx - 6) * 0.45 + (Math.random() - 0.5) * spread,
+                    cy: my + (my - 6) * 0.45 + (Math.random() - 0.5) * spread,
+                    a0: i < a.length ? 1 : 0,
+                    a1: i < b.length ? 1 : 0,
+                    delay: Math.random() * 0.28,
+                });
+            }
+
+            const speed = window.PanelMotion ? window.PanelMotion.getSpeed() : 1;
+            const duration = ms / Math.max(0.1, speed);
+            const start = performance.now();
+            animating.current = true;
+            const frame = (now: number) => {
+                const raw = Math.min(1, (now - start) / duration);
+                draw(
+                    particles.map((p) => {
+                        const t = ease(Math.max(0, Math.min(1, (raw - p.delay) / (1 - p.delay))));
+                        const u = 1 - t;
+                        return {
+                            x: u * u * p.x0 + 2 * u * t * p.cx + t * t * p.x1,
+                            y: u * u * p.y0 + 2 * u * t * p.cy + t * t * p.y1,
+                            // 飛行中稍微變淡，像散開的光點
+                            a: (p.a0 + (p.a1 - p.a0) * t) * (1 - 0.35 * Math.sin(Math.PI * t)),
+                        };
+                    })
+                );
+                if (raw < 1) raf = requestAnimationFrame(frame);
+                else {
+                    animating.current = false;
+                    still();
+                }
+            };
+            raf = requestAnimationFrame(frame);
+        };
+        /* 進入彩虹世界時：像素從四周飛進來，重新組成同一個圖示 */
+        play.current = () => {
+            if (reducedMotion()) return;
+            const scatter: Dot[] = target.map(() => [6 + (Math.random() - 0.5) * 30, 6 + (Math.random() - 0.5) * 30]);
+            run(scatter, 12, 900);
+        };
+
         if (!from || from === target || reducedMotion()) {
             animating.current = false;
             still();
-            return;
+        } else {
+            run(from, 7, 720);
         }
-
-        // 配對：多出來的像素從舊圖示裡長出來（淡入），或飛向新圖示時淡出
-        const a = shuffle(from);
-        const b = shuffle(target);
-        const n = Math.max(a.length, b.length);
-        const particles: Particle[] = [];
-        for (let i = 0; i < n; i++) {
-            const s = a[i % a.length];
-            const e = b[i % b.length];
-            const mx = (s[0] + e[0]) / 2;
-            const my = (s[1] + e[1]) / 2;
-            // 散開：中點往外推一點再加上隨機偏移
-            particles.push({
-                x0: s[0],
-                y0: s[1],
-                x1: e[0],
-                y1: e[1],
-                cx: mx + (mx - 6) * 0.45 + (Math.random() - 0.5) * 7,
-                cy: my + (my - 6) * 0.45 + (Math.random() - 0.5) * 7,
-                a0: i < a.length ? 1 : 0,
-                a1: i < b.length ? 1 : 0,
-                delay: Math.random() * 0.28,
-            });
-        }
-
-        const speed = window.PanelMotion ? window.PanelMotion.getSpeed() : 1;
-        const duration = 720 / Math.max(0.1, speed);
-        const start = performance.now();
-        animating.current = true;
-        let raf = 0;
-        const frame = (now: number) => {
-            const raw = Math.min(1, (now - start) / duration);
-            draw(
-                particles.map((p) => {
-                    const t = ease(Math.max(0, Math.min(1, (raw - p.delay) / (1 - p.delay))));
-                    const u = 1 - t;
-                    return {
-                        x: u * u * p.x0 + 2 * u * t * p.cx + t * t * p.x1,
-                        y: u * u * p.y0 + 2 * u * t * p.cy + t * t * p.y1,
-                        // 飛行中稍微變淡，像散開的光點
-                        a: (p.a0 + (p.a1 - p.a0) * t) * (1 - 0.35 * Math.sin(Math.PI * t)),
-                    };
-                })
-            );
-            if (raw < 1) raf = requestAnimationFrame(frame);
-            else {
-                animating.current = false;
-                still();
-            }
-        };
-        raf = requestAnimationFrame(frame);
         return () => {
             cancelAnimationFrame(raf);
             animating.current = false;
+            play.current = null;
         };
     }, [icon, size]);
 

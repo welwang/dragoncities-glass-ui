@@ -11,8 +11,8 @@
         <meta name="_token" content="{{ csrf_token() }}">
 
         @include('partials.brand-icons')
-        <link rel="stylesheet" href="/branding/motion-speed.css?v=20261103-motion1">
-        <script src="/branding/motion-speed.js?v=20261103-motion1" defer></script>
+        <link rel="stylesheet" href="/branding/motion-speed.css?v=20261109-motion2">
+        <script src="/branding/motion-speed.js?v=20261109-motion2" defer></script>
         <meta name="theme-color" content="#0e4688">
 
         @include('layouts.scripts')

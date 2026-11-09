@@ -55,37 +55,48 @@
   function profile(x) { var u = 1 - x; return u * u * Math.sqrt(u); }      // (1-x)^2.5
   var MAX_SLOPE = 2.5;                                                     // profile 在 x=0 的斜率
 
-  /* 泡泡主題：肥皂泡的薄膜干涉色。
-   - 膜厚 d（奈米）在表面上緩慢流動（用 CSS 像素當單位，寬的玻璃列不會被拉長），越往下越厚（像泡泡的膜往下流）
-   - 反射光強度 I = sin²(2π·n·d / λ)，紅綠藍各用自己的波長 → 金、洋紅、藍、綠交替的泡泡色
-   - 只取三色之間的差（色相），加在淡淡的白上，所以是透明的虹彩，不是塗上去的顏色 */
-  function filmColor(px, py, hh) {
-    var d = 430 + 120 * Math.sin(px / 260 + 1.1 * Math.sin(py / 90 + px / 520))
-      + 80 * Math.sin(py / 70 - px / 430 + 0.7) + 70 * (py / hh);
-    var o = 2 * Math.PI * 1.33 * d;
-    var r = Math.pow(Math.sin(o / 650), 2), g = Math.pow(Math.sin(o / 540), 2), b = Math.pow(Math.sin(o / 450), 2);
-    var m = (r + g + b) / 3;
-    var c = function (v) { return Math.max(0, Math.min(1, 0.76 + 0.8 * (v - m))); };
-    return [c(r), c(g), c(b), Math.max(Math.abs(r - m), Math.abs(g - m), Math.abs(b - m))];
-  }
-
-  /* 依元素尺寸產生兩張圖：位移圖（R,G = 方向）與鏡面圖（白光，alpha = 亮度）。
+  /* 依元素尺寸產生兩張圖的像素：位移圖（R,G = 方向）與鏡面圖（白光，alpha = 亮度）。
      film = true（泡泡主題）：整片玻璃再疊一層薄膜干涉色——中間極淡、越靠近邊緣越明顯（掠射角反射較強），
-     白色鏡面高光仍在最上層 */
-  function buildMaps(w, h, radius, bezel, spec, lens, film) {
-    /* 依螢幕倍率產生，長邊最多 2400px：低解析度貼圖放大是邊緣鋸齒的主因 */
-    var dpr = Math.min(2, global.devicePixelRatio || 1);
-    var k = Math.min(dpr, 2400 / Math.max(w, h));
-    var W = Math.max(2, Math.round(w * k)), H = Math.max(2, Math.round(h * k));
-    var dc = document.createElement('canvas'), sc = document.createElement('canvas');
-    dc.width = sc.width = W; dc.height = sc.height = H;
-    var dctx = dc.getContext('2d'), sctx = sc.getContext('2d');
-    var di = dctx.createImageData(W, H), si = sctx.createImageData(W, H);
-    var D = di.data, S = si.data;
-    var hw = w / 2, hh = h / 2, r = Math.min(radius, hw, hh);
+     白色鏡面高光仍在最上層。
+     這是不碰 DOM 的純函式，所有輔助計算都寫在裡面：同一份程式可以拿到背景執行緒（Worker）執行，
+     打包壓縮後也不會缺少外部的函式。主執行緒與 Worker 算出的像素完全相同。 */
+  function computeMaps(p) {
+    var w = p.w, h = p.h, W = p.W, H = p.H, k = p.k, bezel = p.bezel, spec = p.spec, lens = p.lens, film = p.film > 0, gain = p.film || 0;
+    var LX = -0.55, LY = -0.83;                                            // 光源：左上方（與 iOS 相同的固定光）
+    var D = new Uint8ClampedArray(W * H * 4), S = new Uint8ClampedArray(W * H * 4);
+    var hw = w / 2, hh = h / 2, r = Math.min(p.radius, hw, hh);
+
+    /* 泡泡主題：肥皂泡的薄膜干涉色。
+       - 膜厚 d（奈米）在表面上緩慢流動（用 CSS 像素當單位，寬的玻璃列不會被拉長），越往下越厚（像泡泡的膜往下流）
+       - 反射光強度 I = sin²(2π·n·d / λ)，紅綠藍各用自己的波長 → 金、洋紅、藍、綠交替的泡泡色
+       - 只取三色之間的差（色相），加在淡淡的白上，所以是透明的虹彩，不是塗上去的顏色
+       顏色變化很慢（一個週期約 150–400 CSS px），所以先在每 2 CSS px 的格點上算好，再用雙線性內插取值：
+       和逐點計算的差異小於一個色階，但三角函數的計算量少了十幾倍 */
+    var G = 2, gw = 0, FT = null;
+    if (film) {
+      gw = Math.ceil(w / G) + 2;
+      var gh = Math.ceil(h / G) + 2;
+      FT = new Float32Array(gw * gh * 4);
+      for (var gy = 0; gy < gh; gy++) {
+        for (var gx = 0; gx < gw; gx++) {
+          var fx = gx * G - hw, fy = gy * G - hh;
+          var d = 430 + 120 * Math.sin(fx / 260 + 1.1 * Math.sin(fy / 90 + fx / 520))
+            + 80 * Math.sin(fy / 70 - fx / 430 + 0.7) + 70 * (fy / hh);
+          var o = 2 * Math.PI * 1.33 * d;
+          var sr = Math.sin(o / 650), sg = Math.sin(o / 540), sb = Math.sin(o / 450);
+          var ir = sr * sr, ig = sg * sg, ib = sb * sb, im = (ir + ig + ib) / 3;
+          var j = (gy * gw + gx) * 4;
+          FT[j] = Math.max(0, Math.min(1, 0.76 + 0.8 * (ir - im)));
+          FT[j + 1] = Math.max(0, Math.min(1, 0.76 + 0.8 * (ig - im)));
+          FT[j + 2] = Math.max(0, Math.min(1, 0.76 + 0.8 * (ib - im)));
+          FT[j + 3] = Math.max(Math.abs(ir - im), Math.abs(ig - im), Math.abs(ib - im));
+        }
+      }
+    }
 
     for (var y = 0; y < H; y++) {
       var py = (y + 0.5) / H * h - hh, sy = py < 0 ? -1 : 1, qy = Math.abs(py) - (hh - r);
+      var tyf = (py + hh) / G, ty0 = Math.floor(tyf), tv = tyf - ty0;
       for (var x = 0; x < W; x++) {
         var px = (x + 0.5) / W * w - hw, sx = px < 0 ? -1 : 1, qx = Math.abs(px) - (hw - r);
         var dist, nx, ny;
@@ -98,7 +109,8 @@
         var i = (y * W + x) * 4, m = 0, a = 0;
         if (dist >= 0 && dist < bezel) {
           var t = dist / bezel;
-          m = profile(t);
+          var u = 1 - t;
+          m = u * u * Math.sqrt(u);                                        // 折射曲線 (1-t)^2.5
           /* 鏡面：外緣一條細亮線 + 往內漸淡的寬光，強度取決於法線是否朝向光源 */
           var facing = nx * LX + ny * LY;                                  // 1 = 正對光源
           var lit = facing > 0 ? Math.pow(facing, 1.5) : 0.38 * Math.pow(-facing, 2);   // 背光側有較弱的反射
@@ -119,15 +131,23 @@
         }
         D[i + 2] = 128; D[i + 3] = 255;
         if (film && dist >= 0) {
+          /* 薄膜色：格點雙線性內插 */
+          var txf = (px + hw) / G, tx0 = Math.floor(txf), tu = txf - tx0;
+          var j00 = (ty0 * gw + tx0) * 4, j10 = j00 + 4, j01 = j00 + gw * 4, j11 = j01 + 4;
+          var w00 = (1 - tu) * (1 - tv), w10 = tu * (1 - tv), w01 = (1 - tu) * tv, w11 = tu * tv;
+          var c0 = FT[j00] * w00 + FT[j10] * w10 + FT[j01] * w01 + FT[j11] * w11;
+          var c1 = FT[j00 + 1] * w00 + FT[j10 + 1] * w10 + FT[j01 + 1] * w01 + FT[j11 + 1] * w11;
+          var c2 = FT[j00 + 2] * w00 + FT[j10 + 2] * w10 + FT[j01 + 2] * w01 + FT[j11 + 2] * w11;
+          var c3 = FT[j00 + 3] * w00 + FT[j10 + 3] * w10 + FT[j01 + 3] * w01 + FT[j11 + 3] * w11;
           /* 薄膜：中間約 2%（幾乎透明），靠近邊緣 28px 內往外增強到約 30%（泡泡邊緣顏色最濃）；顏色越飽和的地方越看得到 */
-          var fc = filmColor(px, py, hh), edge = Math.pow(Math.max(0, 1 - dist / Math.min(28, hh)), 2);
-          var fa = (0.02 + 0.28 * edge) * (0.5 + 0.8 * fc[3]) * Math.min(1, dist * k + 0.5);
-          fa = Math.min(0.32, fa);
+          var e1 = Math.max(0, 1 - dist / Math.min(28, hh)), edge = e1 * e1;
+          var fa = (0.02 + 0.28 * edge) * gain * (0.5 + 0.8 * c3) * Math.min(1, dist * k + 0.5);
+          fa = Math.min(0.32 * gain, fa);
           /* 白色高光（a）疊在薄膜（fa）上面 */
           var oa = a + fa * (1 - a);
-          S[i] = Math.round(255 * (a + fc[0] * fa * (1 - a)) / (oa || 1));
-          S[i + 1] = Math.round(255 * (a + fc[1] * fa * (1 - a)) / (oa || 1));
-          S[i + 2] = Math.round(255 * (a + fc[2] * fa * (1 - a)) / (oa || 1));
+          S[i] = Math.round(255 * (a + c0 * fa * (1 - a)) / (oa || 1));
+          S[i + 1] = Math.round(255 * (a + c1 * fa * (1 - a)) / (oa || 1));
+          S[i + 2] = Math.round(255 * (a + c2 * fa * (1 - a)) / (oa || 1));
           S[i + 3] = Math.round(oa * 255);
         } else {
           S[i] = S[i + 1] = S[i + 2] = 255;
@@ -135,8 +155,71 @@
         }
       }
     }
-    dctx.putImageData(di, 0, 0); sctx.putImageData(si, 0, 0);
-    return { disp: dc.toDataURL(), spec: sc.toDataURL() };
+    return { D: D, S: S };
+  }
+
+  /* ---------- 在背景執行緒產生貼圖 ----------
+   * 大片玻璃（例如整條導覽列）的貼圖在高解析度螢幕上要算幾十萬個像素，泡泡主題更多。
+   * 放在主執行緒會讓頁面卡住一下（換頁、改視窗大小、切換彩虹時最明顯），所以交給 Worker 計算與壓縮成 PNG；
+   * 瀏覽器不允許建立 Worker（例如網站的安全政策）時，退回主執行緒計算，結果完全相同。 */
+  var worker = null, workerBroken = false, jobs = new Map(), jobSeq = 0;
+  function mapWorker() {
+    if (worker || workerBroken) return worker;
+    try {
+      if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') throw new Error('unsupported');
+      var src = 'var computeMaps = ' + computeMaps.toString() + ';\n' +
+        'function png(buf, W, H) { var c = new OffscreenCanvas(W, H); c.getContext("2d").putImageData(new ImageData(buf, W, H), 0, 0); return c.convertToBlob({ type: "image/png" }); }\n' +
+        'onmessage = function (e) { var p = e.data; try { var out = computeMaps(p);' +
+        ' Promise.all([png(out.D, p.W, p.H), png(out.S, p.W, p.H)]).then(function (b) { postMessage({ id: p.id, disp: b[0], spec: b[1] }); },' +
+        ' function () { postMessage({ id: p.id, error: 1 }); }); } catch (err) { postMessage({ id: p.id, error: 1 }); } };';
+      var url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      URL.revokeObjectURL(url);
+      worker.onmessage = function (e) {
+        var job = jobs.get(e.data.id); if (!job) return;
+        jobs.delete(e.data.id);
+        if (e.data.error) job.fallback();
+        else job.done({ disp: URL.createObjectURL(e.data.disp), spec: URL.createObjectURL(e.data.spec), blob: true });
+      };
+      worker.onerror = function () {
+        workerBroken = true; worker = null;
+        var waiting = Array.from(jobs.values()); jobs.clear();
+        waiting.forEach(function (job) { job.fallback(); });
+      };
+    } catch (err) { workerBroken = true; worker = null; }
+    return worker;
+  }
+  function mapsOnMainThread(p) {
+    var out = computeMaps(p);
+    function url(buf) {
+      var c = document.createElement('canvas'); c.width = p.W; c.height = p.H;
+      c.getContext('2d').putImageData(new ImageData(buf, p.W, p.H), 0, 0);
+      return c.toDataURL();
+    }
+    return { disp: url(out.D), spec: url(out.S), blob: false };
+  }
+  /* 貼圖解碼完成才算好：套上還沒載入的貼圖，玻璃會閃一下沒有折射的畫面 */
+  function decoded(maps) {
+    function one(src) { var im = new Image(); im.src = src; return im.decode ? im.decode().catch(function () {}) : new Promise(function (res) { im.onload = im.onerror = res; }); }
+    return Promise.all([one(maps.disp), one(maps.spec)]).then(function () { return maps; });
+  }
+  function buildMaps(w, h, radius, bezel, spec, lens, film) {
+    /* 依螢幕倍率產生，長邊最多 2400px：低解析度貼圖放大是邊緣鋸齒的主因 */
+    var dpr = Math.min(2, global.devicePixelRatio || 1);
+    var k = Math.min(dpr, 2400 / Math.max(w, h));
+    var p = { w: w, h: h, W: Math.max(2, Math.round(w * k)), H: Math.max(2, Math.round(h * k)), k: k,
+      radius: radius, bezel: bezel, spec: spec, lens: lens || null, film: +film || 0 };
+    return new Promise(function (resolve) {
+      var wk = mapWorker();
+      var fallback = function () { resolve(decoded(mapsOnMainThread(p))); };
+      if (!wk) { fallback(); return; }
+      p.id = ++jobSeq;
+      jobs.set(p.id, { done: function (maps) { resolve(decoded(maps)); }, fallback: fallback });
+      wk.postMessage(p);
+    });
+  }
+  function revokeMaps(maps) {
+    if (maps && maps.blob) { URL.revokeObjectURL(maps.disp); URL.revokeObjectURL(maps.spec); }
   }
 
   function mk(tag, attrs, parent) {
@@ -162,22 +245,28 @@
     mk('feComposite', { in: out + 'RG', in2: out + 'B', operator: 'arithmetic', k1: 0, k2: 1, k3: 1, k4: 0, result: out }, f);
   }
 
+  /* 濾鏡在貼圖準備好之後才建立（貼圖在背景執行緒產生）；rec.ready 完成時 rec.node 才存在 */
   function makeFilter(key, w, h, o) {
     var id = 'lg' + (++seq);
-    var maps = buildMaps(w, h, o.radius, o.bezel, o.spec, o.lens, o.iris);
-    var f = mk('filter', {
-      id: id, x: '0', y: '0', width: w, height: h,
-      filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse',
-      'color-interpolation-filters': 'sRGB'
-    }, ensureSvg());
-    mk('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: o.blur, edgeMode: 'duplicate', result: 'b' }, f);
-    mk('feImage', { href: maps.disp, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'd' }, f);
-    if (o.disperse > 0) disperse(f, 'b', 'd', o.scale, o.disperse, 'r');
-    else mk('feDisplacementMap', { in: 'b', in2: 'd', scale: o.scale, xChannelSelector: 'R', yChannelSelector: 'G', result: 'r' }, f);
-    mk('feImage', { href: maps.spec, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 's' }, f);
-    mk('feComposite', { in: 's', in2: 'r', operator: 'over' }, f);
-    var rec = { id: id, node: f, refs: 0 };
+    var rec = { id: id, node: null, refs: 0, maps: null, ready: null };
     filters.set(key, rec);
+    rec.ready = buildMaps(w, h, o.radius, o.bezel, o.spec, o.lens, o.iris).then(function (maps) {
+      if (filters.get(key) !== rec) { revokeMaps(maps); return false; }  // 等待中已經沒有人要用
+      rec.maps = maps;
+      var f = mk('filter', {
+        id: id, x: '0', y: '0', width: w, height: h,
+        filterUnits: 'userSpaceOnUse', primitiveUnits: 'userSpaceOnUse',
+        'color-interpolation-filters': 'sRGB'
+      }, ensureSvg());
+      mk('feGaussianBlur', { in: 'SourceGraphic', stdDeviation: o.blur, edgeMode: 'duplicate', result: 'b' }, f);
+      mk('feImage', { href: maps.disp, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 'd' }, f);
+      if (o.disperse > 0) disperse(f, 'b', 'd', o.scale, o.disperse, 'r');
+      else mk('feDisplacementMap', { in: 'b', in2: 'd', scale: o.scale, xChannelSelector: 'R', yChannelSelector: 'G', result: 'r' }, f);
+      mk('feImage', { href: maps.spec, x: 0, y: 0, width: w, height: h, preserveAspectRatio: 'none', result: 's' }, f);
+      mk('feComposite', { in: 's', in2: 'r', operator: 'over' }, f);
+      rec.node = f;
+      return true;
+    });
     return rec;
   }
 
@@ -221,20 +310,33 @@
     contentMaps.set(key, rec);
     return rec;
   }
-  function updateContent(bar, w, h, radius) {
+  /* 量測階段：子元素的位置與大小先讀完（只讀），套用階段才寫入。
+     原本是「讀座標 → 寫濾鏡 → 讀下一個座標」，中間的寫入會讓下一次讀取再強制一次版面 */
+  function measureContent(bar) {
     var strength = parseFloat(getComputedStyle(bar).getPropertyValue('--lg-content')) || 0;
-    var kids = Array.prototype.filter.call(bar.children, function (c) { return !c.classList.contains('sys-lens'); });
-    kids.forEach(function (kid) {
-      var prev = kid.__lgContent;
-      /* 一般解析度螢幕（倍率 < 1.5）不做：濾鏡會讓整條列的字失去次像素反鋸齒（ClearType），變軟 */
-      if (!strength || !SUPPORTED || reduceMotion.matches || (global.devicePixelRatio || 1) < 1.5) {
+    /* 一般解析度螢幕（倍率 < 1.5）不做：濾鏡會讓整條列的字失去次像素反鋸齒（ClearType），變軟 */
+    var need = !!strength && SUPPORTED && !reduceMotion.matches && (global.devicePixelRatio || 1) >= 1.5;
+    var kids = [];
+    Array.prototype.forEach.call(bar.children, function (c) {
+      if (c.classList.contains('sys-lens')) return;
+      kids.push(need
+        ? { el: c, ox: c.offsetLeft, oy: c.offsetTop, cw: c.offsetWidth, ch: c.offsetHeight }
+        : { el: c, ox: 0, oy: 0, cw: 0, ch: 0 });
+    });
+    return { strength: strength, need: need, kids: kids };
+  }
+  function updateContent(w, h, radius, measured) {
+    var strength = measured.strength;
+    measured.kids.forEach(function (k) {
+      var kid = k.el, prev = kid.__lgContent;
+      if (!measured.need) {
         if (prev) { prop(kid, 'filter', ''); releaseContent(prev); kid.__lgContent = null; }
         return;
       }
       var bezel = Math.round(Math.min(Math.min(w, h) * 0.7, 40)), exp = 1.6;
       /* 不摺疊的上限：位移的斜率 < 1；strength 0–1 再乘上去 */
       var S = +(strength * 2 * bezel / exp).toFixed(2);
-      var ox = kid.offsetLeft, oy = kid.offsetTop, cw = kid.offsetWidth, ch = kid.offsetHeight;
+      var ox = k.ox, oy = k.oy, cw = k.cw, ch = k.ch;
       if (cw < 4 || ch < 4) return;
       var key = [w, h, radius, bezel, exp, S, ox, oy, cw, ch].join('|');
       if (prev === key) return;
@@ -262,69 +364,177 @@
     if (rec && --rec.refs <= 0) { rec.node.remove(); contentFilters.delete(key); }
   }
 
+  /* ---------- 換頁時把剛空下來的濾鏡留著 ----------
+   * 面板各頁的內容卡片尺寸大同小異，換頁時經常又出現同一種尺寸。
+   * 以前只要沒有元素引用就立刻移除濾鏡節點、釋放貼圖，下次同樣尺寸要再等 Worker 算一次
+   * （這段時間那片玻璃沒有折射，看起來會閃一下）。現在把它留在 SVG 裡：
+   * 沒有元素引用就不參與繪製，不花合成成本；只保留最近幾份，超過就丟掉最舊的，
+   * 貼圖記憶體有上限，而重複使用時濾鏡內容與重新算出來的完全一樣。 */
+  var PARK = 3, parked = [];
+  function park(key, rec) {
+    if (rec.parked) return;
+    rec.parked = true;
+    parked.push(key);
+    while (parked.length > PARK) {
+      var old = parked.shift(), gone = filters.get(old);
+      if (!gone || gone.refs > 0) continue;                            // 又有人用了：不能用
+      if (gone.node) gone.node.remove();
+      revokeMaps(gone.maps);                                            // 還在等貼圖的：讓它回來時自己放棄
+      filters.delete(old);
+    }
+  }
   function release(key) {
     var rec = filters.get(key);
-    if (rec && --rec.refs <= 0) { rec.node.remove(); filters.delete(key); }
+    if (rec && --rec.refs <= 0) {
+      if (rec.node) park(key, rec);
+      else { revokeMaps(rec.maps); filters.delete(key); }
+    }
   }
 
-  function update(node) {
-    if (node.classList.contains('lg-morphing')) return;                  // 變形動畫中先用模糊，結束再算
-    var w = node.offsetWidth, h = node.offsetHeight;                       // 不含 transform，縮放動畫不會重算
-    if (w < 8 || h < 8) return;
-    var radius = parseFloat(getComputedStyle(node).borderTopLeftRadius) || 0;
-    /* 厚邊寬度與折射強度：元素屬性 → CSS 變數 --lg-bezel / --lg-strength → 預設 */
+  /* 把已經準備好的濾鏡套到元素上（換掉舊的） */
+  function applyFilter(node, key, rec) {
+    if (tracked.has(node)) release(tracked.get(node));
+    tracked.set(node, key);
+    node.__lgWant = null;
+    prop(node, '--lg-filter', 'url(#' + rec.id + ') saturate(var(--lg-sat, 1.65)) brightness(var(--lg-bright, 1))');
+    cls(node, 'lg-live', true);
+  }
+
+  /* ---------- 一幀只量一次版面 ----------
+   * update() 原本邊讀尺寸邊寫入（CSS 變數、濾鏡屬性）。寫入會讓樣式失效，
+   * 下一片玻璃讀 offsetWidth 時就再強制一次版面；同一幀要處理的玻璃越多就越慢
+   * （切換深淺色、換頁、改視窗大小、導覽列展開後重算時最明顯）。
+   * 現在拆成兩段：measure() 只讀、update() 只算與寫，一幀的版面計算固定只有一次，
+   * 讀到的數值與原本逐片讀取的完全相同（兩段之間沒有任何會改變版面的事）。 */
+  function measure(node) {
+    var m = { w: 0, h: 0 };
+    if (node.classList.contains('lg-morphing')) return m;                // 變形動畫中先用模糊，結束再算
+    m.w = node.offsetWidth; m.h = node.offsetHeight;                      // 不含 transform，縮放動畫不會重算
+    if (m.w < 8 || m.h < 8) return m;
     var cs = getComputedStyle(node);
-    var bezel = attrNum(node, 'bezel', parseFloat(cs.getPropertyValue('--lg-bezel')) || Math.min(28, Math.min(w, h) * 0.32));
-    bezel = Math.max(4, Math.min(bezel, Math.min(w, h) * 0.45));
-    var strength = Math.max(0, Math.min(1, attrNum(node, 'strength', parseFloat(cs.getPropertyValue('--lg-strength')) || 0.9)));
+    m.radius = parseFloat(cs.borderTopLeftRadius) || 0;
+    /* 厚邊寬度與折射強度：元素屬性 → CSS 變數 --lg-bezel / --lg-strength → 預設 */
+    m.bezel = attrNum(node, 'bezel', parseFloat(cs.getPropertyValue('--lg-bezel')) || Math.min(28, Math.min(m.w, m.h) * 0.32));
+    m.strength = attrNum(node, 'strength', parseFloat(cs.getPropertyValue('--lg-strength')) || 0.9);
+    /* 霧化程度：元素屬性優先，否則讀 CSS 變數 --lg-frost（深色 / 淺色各自設定） */
+    m.blur = attrNum(node, 'blur', parseFloat(cs.getPropertyValue('--lg-frost')) || 1.2);
+    /* 高光強度：元素屬性優先，否則讀 CSS 變數 --lg-spec（深色 / 淺色各自設定） */
+    m.spec = attrNum(node, 'spec', parseFloat(cs.getPropertyValue('--lg-spec')) || 0.55);
+    /* 泡泡主題（appearance.css 設定，見該檔說明）：
+       --lg-iris      > 0 = 玻璃本身帶肥皂泡的薄膜干涉色，數值是濃淡（1 = 標準；只改高光圖，不增加每幀的成本）
+       --lg-disperse  紅綠藍分開折射的比例（稜鏡色散；每多一個元素多兩次位移運算，只給導覽列） */
+    m.iris = Math.max(0, Math.min(3, parseFloat(cs.getPropertyValue('--lg-iris')) || 0));
+    m.disperse = Math.max(0, Math.min(0.6, parseFloat(cs.getPropertyValue('--lg-disperse')) || 0));
+    /* data-glass-magnify > 1：透鏡（放大 + 邊緣折射），用於選取膠囊移動時 */
+    m.mag = attrNum(node, 'magnify', 1);
+    if (node.classList.contains('sys-bar')) m.content = measureContent(node);
+    return m;
+  }
+
+  function update(node, m) {
+    if (node.classList.contains('lg-morphing')) return;
+    var w = m.w, h = m.h;
+    if (w < 8 || h < 8) return;
+    var radius = m.radius;
+    var bezel = Math.max(4, Math.min(m.bezel, Math.min(w, h) * 0.45));
+    var strength = Math.max(0, Math.min(1, m.strength));
     /* 位移量 = scale × 0.5 × profile；斜率 < 0.85 才不會摺疊出雜訊 */
     var scale = strength * 0.85 * bezel / (0.5 * MAX_SLOPE);
     var o = {
       radius: radius, bezel: Math.round(bezel), scale: +scale.toFixed(2),
-      /* 霧化程度：元素屬性優先，否則讀 CSS 變數 --lg-frost（深色 / 淺色各自設定） */
-      blur: attrNum(node, 'blur', parseFloat(getComputedStyle(node).getPropertyValue('--lg-frost')) || 1.2),
-      /* 高光強度：元素屬性優先，否則讀 CSS 變數 --lg-spec（深色 / 淺色各自設定） */
-      spec: Math.max(0, Math.min(1, attrNum(node, 'spec', parseFloat(getComputedStyle(node).getPropertyValue('--lg-spec')) || 0.55))),
-      /* 泡泡主題（appearance.css 設定，見該檔說明）：
-         --lg-iris      1 = 玻璃本身帶肥皂泡的薄膜干涉色（只改高光圖，不增加每幀的成本）
-         --lg-disperse  紅綠藍分開折射的比例（稜鏡色散；每多一個元素多兩次位移運算，只給導覽列） */
-      iris: (parseFloat(cs.getPropertyValue('--lg-iris')) || 0) > 0,
-      disperse: Math.max(0, Math.min(0.6, parseFloat(cs.getPropertyValue('--lg-disperse')) || 0))
+      blur: m.blur,
+      spec: Math.max(0, Math.min(1, m.spec)),
+      iris: m.iris,
+      disperse: m.disperse
     };
-    /* data-glass-magnify > 1：透鏡（放大 + 邊緣折射），用於選取膠囊移動時 */
-    var mag = attrNum(node, 'magnify', 1);
+    var mag = m.mag;
     if (mag > 1) {
       var eo = strength * 0.85 * bezel / MAX_SLOPE;
       var S = 2 * (Math.max(w, h) / 2 * (1 - 1 / mag) + eo);
       o.scale = +S.toFixed(2);
       o.lens = { mag: mag, eo: eo, S: S };
     }
-    var key = [w, h, radius, o.bezel, o.scale, o.blur, o.spec, mag, o.iris ? 1 : 0, o.disperse].join('|');
-    if (tracked.get(node) === key) { if (node.classList.contains('sys-bar')) updateContent(node, w, h, radius); return; }
+    var key = [w, h, radius, o.bezel, o.scale, o.blur, o.spec, mag, o.iris, o.disperse].join('|');
+    if (m.content) updateContent(w, h, radius, m.content);
+    /* 已經套用、或正在等同一份貼圖 */
+    if (tracked.get(node) === key) { if (node.__lgWant) { release(node.__lgWant); node.__lgWant = null; } return; }
+    if (node.__lgWant === key) return;
     var rec = filters.get(key) || makeFilter(key, w, h, o);
     rec.refs++;
-    if (tracked.has(node)) release(tracked.get(node));
-    tracked.set(node, key);
-    prop(node, '--lg-filter', 'url(#' + rec.id + ') saturate(var(--lg-sat, 1.65)) brightness(var(--lg-bright, 1))');
-    cls(node, 'lg-live', true);
-    if (node.classList.contains('sys-bar')) updateContent(node, w, h, radius);
+    rec.parked = false;                                                  // 又被用到了：之後再空下來要重新排隊
+    if (node.__lgWant) release(node.__lgWant);                            // 換掉還在等的那一份
+    if (rec.node) { applyFilter(node, key, rec); return; }               // 同尺寸的玻璃已經算過：立刻套用
+    /* 新尺寸：貼圖在背景產生，期間保留目前的樣子，好了再換上 */
+    node.__lgWant = key;
+    rec.ready.then(function (ok) {
+      if (ok && node.__lgWant === key && node.__lg && node.isConnected) applyFilter(node, key, rec);
+    });
   }
 
   var pending = new Set(), raf = 0;
   function schedule(node) { pending.add(node); if (!raf) raf = requestAnimationFrame(flush); }
   function flush() {
     raf = 0;
-    pending.forEach(function (n) { if (n.isConnected) update(n); });
+    var list = [];
+    pending.forEach(function (n) { if (n.isConnected) list.push(n); });
     pending.clear();
+    /* 先把這一幀要處理的玻璃全部量完，再開始寫入：中間沒有任何讀取，版面只算一次 */
+    var measured = list.map(measure);
+    list.forEach(function (n, i) { update(n, measured[i]); });
+  }
+  /* ---------- 尺寸變化中的玻璃（例如導覽列展開分頁列、改視窗大小） ----------
+   * 以前每一幀的新尺寸都重新產生一次貼圖：展開動畫的每一幀都卡住。
+   * 現在：尺寸變化中先把現有的貼圖拉伸到新尺寸（只改幾個屬性，不重算），
+   * 尺寸停止變化 140ms 後才產生正確尺寸的貼圖、換上。 */
+  function stretch(node) {
+    var key = tracked.get(node), rec = key && filters.get(key);
+    if (!rec || !rec.node || rec.refs !== 1) return false;               // 還沒有濾鏡、或和別的元素共用：不拉伸
+    var w = node.offsetWidth, h = node.offsetHeight;
+    if (w < 8 || h < 8) return false;
+    var f = rec.node;
+    /* 值沒變就不寫：屬性的寫入（即使同值）都會讓這個濾鏡失效、下一幀整片重畫 */
+    var W = String(w), H = String(h);
+    if (f.getAttribute('width') !== W || f.getAttribute('height') !== H) { f.setAttribute('width', w); f.setAttribute('height', h); }
+    f.querySelectorAll('feImage').forEach(function (im) {
+      if (im.getAttribute('width') === W && im.getAttribute('height') === H) return;
+      im.setAttribute('width', w); im.setAttribute('height', h);
+    });
+    /* 拉伸過的濾鏡已經不是原本尺寸：換一個專用的名字，別的元素就不會拿到它 */
+    if (!rec.stretched) {
+      rec.stretched = true;
+      var own = key + '|stretched|' + (++seq);
+      filters.delete(key); filters.set(own, rec); tracked.set(node, own);
+    }
+    return true;
+  }
+  function resized(node) {
+    /* 還沒有濾鏡（第一次出現）：立刻產生；已經有濾鏡：能拉伸就拉伸，等尺寸穩定再重算
+       （和別的同尺寸元素共用濾鏡時不拉伸，暫時沿用，例如改視窗大小時一整排伺服器卡片） */
+    if (!tracked.has(node)) { schedule(node); return; }
+    stretch(node);
+    clearTimeout(node.__lgSettle);
+    node.__lgSettle = setTimeout(function () { node.__lgSettle = 0; schedule(node); }, 140);
   }
   var ro = typeof ResizeObserver !== 'undefined'
-    ? new ResizeObserver(function (es) { es.forEach(function (e) { schedule(e.target); }); }) : null;
+    ? new ResizeObserver(function (es) { es.forEach(function (e) { resized(e.target); }); }) : null;
 
-  /* 觸控光暈：按下時，光從手指位置在玻璃裡擴散 */
+  /* 觸控光暈與邊緣亮線：記下游標在玻璃上的位置。高回報率滑鼠一幀會送好幾次移動，合併成每幀只寫一次（少做多餘的樣式重算） */
+  var glowQueue = new Map(), glowRaf = 0;
+  function flushGlow() {
+    glowRaf = 0;
+    glowQueue.forEach(function (pt, n) {
+      var r = n.getBoundingClientRect();
+      /* 同值不寫：游標沒動（或在同一點震動）時，寫入會讓整片玻璃的折射重算一次 */
+      prop(n, '--lg-px', (pt.x - r.left) + 'px');
+      prop(n, '--lg-py', (pt.y - r.top) + 'px');
+    });
+    glowQueue.clear();
+  }
   function glow(e) {
-    var n = e.currentTarget, r = n.getBoundingClientRect();
-    n.style.setProperty('--lg-px', (e.clientX - r.left) + 'px');
-    n.style.setProperty('--lg-py', (e.clientY - r.top) + 'px');
+    glowQueue.set(e.currentTarget, { x: e.clientX, y: e.clientY });
+    /* 按下要立刻有光；移動則合併到下一幀 */
+    if (e.type === 'pointerdown') { if (glowRaf) cancelAnimationFrame(glowRaf); flushGlow(); }
+    else if (!glowRaf) glowRaf = requestAnimationFrame(flushGlow);
   }
 
   function attach(node) {
@@ -339,6 +549,8 @@
     node.__lg = false;
     if (ro) ro.unobserve(node);
     if (tracked.has(node)) { release(tracked.get(node)); tracked.delete(node); }
+    if (node.__lgWant) { release(node.__lgWant); node.__lgWant = null; }
+    clearTimeout(node.__lgSettle);
   }
 
   function scan(root) {
@@ -556,16 +768,27 @@
     indRaf = 0;
     document.querySelectorAll(barSel).forEach(function (bar) {
       var act = bar.querySelector('a.active, [aria-current="page"], [aria-selected="true"]');
-      bar.querySelectorAll('.lg-ind').forEach(function (p) { if (!act || act.parentElement !== p) prop(p, '--ind-o', '0'); });
-      if (!act || !act.parentElement) return;
+      var pills = bar.querySelectorAll('.lg-ind');
+      if (!act || !act.parentElement) {
+        pills.forEach(function (p) { prop(p, '--ind-o', '0'); });
+        return;
+      }
       var host = act.parentElement;
       var first = !host.classList.contains('lg-ind');
+      /* .lg-ind 會讓 host 成為定位基準（position: relative），分頁的 offsetLeft / offsetTop 是相對它量的：
+         一定要先加上 class 再讀位置（只有第一次會多一次版面計算，之後 class 已經在了，cls() 不會寫入） */
       cls(host, 'lg-ind', true);
       if (first) cls(host, 'lg-ind-still', true);                 // 第一次出現時不要從 0 滑進來
-      prop(host, '--ind-x', act.offsetLeft + 'px');
-      prop(host, '--ind-y', act.offsetTop + 'px');
-      prop(host, '--ind-w', act.offsetWidth + 'px');
-      prop(host, '--ind-h', act.offsetHeight + 'px');
+      /* 先把這一條列要用到的位置與尺寸讀完，再開始寫入：
+         中間只要寫了一次 CSS 變數，後面的 getBoundingClientRect 就會再強制一次版面
+         （這個函式在每次 DOM 變化、resize、字型載入完成時都會跑） */
+      var ox = act.offsetLeft, oy = act.offsetTop, ow = act.offsetWidth, oh = act.offsetHeight;
+      var btop = bar.getBoundingClientRect().top, ar = act.getBoundingClientRect();
+      pills.forEach(function (p) { if (p !== host) prop(p, '--ind-o', '0'); });
+      prop(host, '--ind-x', ox + 'px');
+      prop(host, '--ind-y', oy + 'px');
+      prop(host, '--ind-w', ow + 'px');
+      prop(host, '--ind-h', oh + 'px');
       prop(host, '--ind-o', '1');
       /* 同一個分頁被 React 換成新的元素（href 相同，例如權限載入後重建）時，不算切換 */
       var same = host.__lgActive && host.__lgActive !== act && !host.__lgActive.isConnected &&
@@ -576,7 +799,7 @@
         var firstTime = !host.__lgActive && !host.__lgLast;
         /* 剛剛在這條列上按過分頁：不管引擎之前有沒有畫過膠囊，都從按下時的位置出發 */
         /* 起點：按下時記下的位置 → 剛被取消選取的那一顆（從 DOM 變化讀出）→ 引擎上次畫膠囊的位置 */
-        var tnow = performance.now(), btop = bar.getBoundingClientRect().top, ar = act.getBoundingClientRect();
+        var tnow = performance.now();
         var fresh = function (rec) { return rec && tnow - rec.t < 2000 && sameRow(rec, btop) ? rec.rect : null; };
         var row = rowGet(btop);
         var moved = row && Math.abs(row.left - ar.left) > 1 ? { left: row.left, width: row.width } : null;
@@ -591,13 +814,15 @@
         if (pressed) firstTime = false;
         host.__lgActive = act;
         if (host.scrollWidth > host.clientWidth + 1) {
-          var target = act.offsetLeft - (host.clientWidth - act.offsetWidth) / 2;
-          host.scrollTo({ left: Math.max(0, target), behavior: firstTime || reduceMotion.matches ? 'auto' : 'smooth' });
+          var target = ox - (host.clientWidth - ow) / 2;
+          var instant = firstTime || reduceMotion.matches;
+          host.scrollTo({ left: Math.max(0, target), behavior: instant ? 'auto' : 'smooth' });
+          /* 立即捲動（不是平滑捲動）會馬上改變分頁在畫面上的位置：記錄位置要用捲動後的值 */
+          if (instant) ar = act.getBoundingClientRect();
         }
       }
-      host.__lgLast = { left: act.offsetLeft, width: act.offsetWidth };
-      var rr = act.getBoundingClientRect();
-      if (rr.width) rowSet(bar.getBoundingClientRect().top, rr);
+      host.__lgLast = { left: ox, width: ow };
+      if (ar.width) rowSet(btop, ar);
       warmLens(host);
       if (first) requestAnimationFrame(function () { requestAnimationFrame(function () { cls(host, 'lg-ind-still', false); }); });
     });
@@ -624,12 +849,22 @@
   var adaptSel = '.sys-nav-shell, .sys-bar:not(.sys-nav-row), .sys-float';
   var skipSel = '.sys-nav-shell, .sys-bar, .sys-float, .sys-sheet, .sys-menu, .sys-tip';
   var adaptRaf = 0;
+  /* 同一次判斷裡，同一個元素的底色只解析一次：三個取樣點常常落在同一批容器上
+     （捲動時的每一幀都要判斷，這裡省下的是每幀重複的樣式解析） */
+  var bgCache = null;
+  function bgOf(el) {
+    var hit = bgCache && bgCache.get(el);
+    if (hit !== undefined) return hit;
+    var bg = getComputedStyle(el).backgroundColor;
+    if (bgCache) bgCache.set(el, bg);
+    return bg;
+  }
   function luminanceAt(x, y, self) {
     var stack = document.elementsFromPoint(x, y);
     for (var i = 0; i < stack.length; i++) {
       var el = stack[i];
       if (self.contains(el) || (el.closest && el.closest(skipSel))) continue;
-      var m = getComputedStyle(el).backgroundColor.match(/[\d.]+/g);
+      var m = bgOf(el).match(/[\d.]+/g);
       if (!m || (m.length > 3 && +m[3] < 0.5)) continue;
       return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255;
     }
@@ -637,35 +872,68 @@
   }
   function paintAdapt() {
     adaptRaf = 0;
-    var light = document.documentElement.getAttribute('data-theme') === 'light';
+    var root = document.documentElement;
+    var light = root.getAttribute('data-theme') === 'light';
+    bgCache = new Map();                                                  // 每次判斷重新開始（底色可能已被改掉）
+    if (!light) {
+      document.querySelectorAll(adaptSel).forEach(function (bar) { cls(bar, 'lg-over-dark', false); });
+      bgCache = null;
+      return;
+    }
+    /* 這兩個值在整次判斷裡都一樣：只讀一次，不要每一條列都重新解析一次根元素的樣式 */
+    var edge = parseFloat(getComputedStyle(root).getPropertyValue('--sys-edge-h')) || 0;
+    var scrolled = root.classList.contains('lg-scrolled');
+    var points = [0.15, 0.5, 0.85];
     document.querySelectorAll(adaptSel).forEach(function (bar) {
-      if (!light) { cls(bar, 'lg-over-dark', false); return; }
       var r = bar.getBoundingClientRect();
       if (!r.width || r.bottom < 0 || r.top > innerHeight) return;
       var y = r.top + r.height / 2, dark = 0;
       /* 捲動邊緣淡出區（高度 = --sys-edge-h）裡，玻璃後面看到的是淡出的底色，不是內容 */
-      var edge = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sys-edge-h')) || 0;
-      if (document.documentElement.classList.contains('lg-scrolled') && y < edge * 0.85) { cls(bar, 'lg-over-dark', false); return; }
-      [0.15, 0.5, 0.85].forEach(function (f) { if (luminanceAt(r.left + r.width * f, y, bar) < 0.4) dark++; });
+      if (scrolled && y < edge * 0.85) { cls(bar, 'lg-over-dark', false); return; }
+      /* 兩點就確定是深色（2/3）時，第三點不用再測：結果相同，少一次命中測試 */
+      for (var i = 0; i < points.length && dark < 2; i++) {
+        if (luminanceAt(r.left + r.width * points[i], y, bar) < 0.4) dark++;
+      }
       cls(bar, 'lg-over-dark', dark >= 2);
     });
+    bgCache = null;
   }
   function adapt() { if (!adaptRaf) adaptRaf = requestAnimationFrame(paintAdapt); }
 
   /* ---------- 玻璃列裡可左右滑動的內容：依捲動位置在邊緣加漸隱，取代硬切 ---------- */
-  var edgeRaf = 0;
+  var edgeRaf = 0, edgeFull = true, edgeOnly = new Set(), edgeGen = 0;
+  /* overflow-x 只會因為 class、版面或視窗大小改變而變：記在元素上，捲動時不必每一幀重新解析樣式；
+     DOM 變動與 resize 時（全部重新檢查）一定重算 */
+  function scrollable(el) {
+    if (el.__lgOxGen !== edgeGen) {
+      var ox = getComputedStyle(el).overflowX;
+      el.__lgOx = ox === 'auto' || ox === 'scroll';
+      el.__lgOxGen = edgeGen;
+    }
+    return el.__lgOx;
+  }
+  function onEdgeScroll(e) { edges(e.currentTarget); }
   function paintEdges() {
     edgeRaf = 0;
-    document.querySelectorAll('.sys-bar, .sys-bar > *').forEach(function (el) {
-      var ox = getComputedStyle(el).overflowX;
-      if (ox !== 'auto' && ox !== 'scroll') return;
-      if (!el.__lgEdge) { el.__lgEdge = true; el.addEventListener('scroll', edges, { passive: true }); }
+    var full = edgeFull, only = edgeOnly;
+    edgeFull = false; edgeOnly = new Set();
+    if (!full && !only.size) return;
+    var list = full ? document.querySelectorAll('.sys-bar, .sys-bar > *') : only;
+    list.forEach(function (el) {
+      if (!el.isConnected || !scrollable(el)) return;
+      if (!el.__lgEdge) { el.__lgEdge = true; el.addEventListener('scroll', onEdgeScroll, { passive: true }); }
       var max = el.scrollWidth - el.clientWidth;
       var state = max <= 1 ? 'none' : el.scrollLeft <= 1 ? 'start' : el.scrollLeft >= max - 1 ? 'end' : 'middle';
       if (el.getAttribute('data-lg-scroll') !== state) el.setAttribute('data-lg-scroll', state);
     });
   }
-  function edges() { if (!edgeRaf) edgeRaf = requestAnimationFrame(paintEdges); }
+  /* 捲動時只更新正在捲動的那幾個（其他元素的狀態不會變）；DOM 變動或 resize 才全部重新檢查 */
+  function edges(target) {
+    if (target) { if (!edgeFull) edgeOnly.add(target); }
+    /* 全部重新檢查（DOM 變動、resize）：class 改變也可能改變 overflow，換一代讓快取重算 */
+    else { edgeFull = true; edgeOnly.clear(); edgeGen++; }
+    if (!edgeRaf) edgeRaf = requestAnimationFrame(paintEdges);
+  }
 
   function start() {
     document.documentElement.classList.add(SUPPORTED ? 'lg-refraction' : 'lg-fallback');
@@ -707,7 +975,8 @@
       if (bars) { indicators(); edges(); adapt(); }
     }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'aria-current', 'aria-selected', 'hidden'] });
     addEventListener('resize', indicators, { passive: true });
-    addEventListener('resize', edges, { passive: true });
+    /* 版面變了，overflow 可能跟著改變：edges() 不帶參數時會換一代編號，讓快取的判斷重算 */
+    addEventListener('resize', function () { edges(); }, { passive: true });
     document.addEventListener('pointerdown', rememberPress, { capture: true, passive: true });
     document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest(barSel); if (b && !b.__lgPress) rememberPress(e); }, { capture: true, passive: true });
     document.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') rememberPress(e); }, { capture: true, passive: true });
@@ -720,7 +989,12 @@
     }
     addEventListener('scroll', onScroll, { passive: true });
     onScroll();
-    addEventListener('scroll', adapt, { passive: true, capture: true });
+    /* 任何可捲動區域捲動都可能改變玻璃底下的背景，但終端機每印一行就捲一次、而且捲的是終端機自己的內容（底色不變），略過 */
+    addEventListener('scroll', function (e) {
+      var t = e.target;
+      if (t && t.nodeType === 1 && t.closest && t.closest('.xterm')) return;
+      adapt();
+    }, { passive: true, capture: true });
     addEventListener('resize', adapt, { passive: true });
     /* 深色 / 淺色、彩虹切換時：高光強度、色散不同要重算，並重新判斷背景明暗 */
     new MutationObserver(function () { global.LiquidGlass.refresh(); adapt(); })

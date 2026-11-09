@@ -17,6 +17,7 @@ resources/scripts/system-theme/liquid-glass.css
 resources/scripts/system-theme/liquid-glass.d.ts
 resources/scripts/system-theme/liquid-glass.js
 resources/scripts/system-theme/panel-brand.ts
+resources/scripts/system-theme/rainbow-world.ts
 resources/scripts/system-theme/roles.css
 resources/scripts/system-theme/theme-mode.ts
 resources/scripts/system-theme/tokens.d.ts

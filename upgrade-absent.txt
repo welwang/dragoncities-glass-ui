@@ -4,4 +4,5 @@ resources/scripts/components/AppearanceMenu.tsx
 resources/scripts/components/elements/PixelIcon.tsx
 resources/scripts/system-theme/appearance.css
 resources/scripts/system-theme/panel-brand.ts
+resources/scripts/system-theme/rainbow-world.ts
 resources/views/partials/panel-brand.php

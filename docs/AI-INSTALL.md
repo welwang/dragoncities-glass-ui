@@ -2,15 +2,15 @@
 
 **繁體中文** | [English](AI-INSTALL.en.md)
 
-適用版本：DragonCities Glass UI **1.1.0**，Pterodactyl Panel **v1.15.2**。這是給能操作終端機的 AI 助手使用的任務指令，不是聊天文字直接執行的安裝器。請先填寫連線資訊，再貼給助手；不要把密碼、私鑰內容或 API Token 貼進提示詞。
+適用版本：DragonCities Glass UI **1.2.0**，Pterodactyl Panel **v1.15.2**。這是給能操作終端機的 AI 助手使用的任務指令，不是聊天文字直接執行的安裝器。請先填寫連線資訊，再貼給助手；不要把密碼、私鑰內容或 API Token 貼進提示詞。
 
 ## 可直接複製的任務指令
 
 ```text
-請在我的既有 Linux Pterodactyl Panel v1.15.2 安裝 DragonCities Glass UI v1.1.0。
+請在我的既有 Linux Pterodactyl Panel v1.15.2 安裝 DragonCities Glass UI v1.2.0。
 
 專案：https://github.com/welwang/dragoncities-glass-ui
-固定版本：v1.1.0；不要改用 main 或其他版本。
+固定版本：v1.2.0；不要改用 main 或其他版本。
 SSH 主機：<填寫主機或已設定的 SSH alias>
 SSH 帳號：<填寫帳號>
 SSH 連接埠：<填寫，例如 22>
@@ -50,13 +50,13 @@ Logo：<填寫主機上的 PNG 絕對路徑；不指定請寫「保留預設／�
 
 ## 助手實際使用的安裝入口
 
-以下在 **Linux 主機** 執行。`~/dragoncities-glass-ui-v1.1.0` 必須尚不存在；已存在時先查明內容，不要覆蓋或刪除。連線命令由你的真實帳號、主機、連接埠與金鑰組成。
+以下在 **Linux 主機** 執行。`~/dragoncities-glass-ui-v1.2.0` 必須尚不存在；已存在時先查明內容，不要覆蓋或刪除。連線命令由你的真實帳號、主機、連接埠與金鑰組成。
 
 ```bash
 cd ~
-git clone --branch v1.1.0 --depth 1 \
-  https://github.com/welwang/dragoncities-glass-ui.git dragoncities-glass-ui-v1.1.0
-cd ~/dragoncities-glass-ui-v1.1.0
+git clone --branch v1.2.0 --depth 1 \
+  https://github.com/welwang/dragoncities-glass-ui.git dragoncities-glass-ui-v1.2.0
+cd ~/dragoncities-glass-ui-v1.2.0
 git rev-parse HEAD
 sha256sum -c SHA256SUMS
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check

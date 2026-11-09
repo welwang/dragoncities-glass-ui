@@ -10,7 +10,8 @@ Author: **小黑柴 (dc_id: 小黑柴)**.
 
 - Light and dark glass themes. A pixel light/dark toggle in the navigation scatters its pixels and reassembles them into a sun or moon, with an edge light that follows the pointer; the ▾ next to it offers Follow system and Rainbow, saved per browser.
 - The same pixel effect is used on every settings switch (✓ / ○) and the console frost button (an eye); glass lights a thin rim near the pointer on hover.
-- **Rainbow bubble glass (light mode)**: only the glass material changes. Glass looks like a soap bubble, with thin-film interference colour that is nearly clear in the middle and strongest toward the edges, plus subtle prismatic dispersion on the navigation glass. Buttons, switches, and other controls are unchanged.
+- **Rainbow world (light mode)**: soap-bubble glass (thin-film colour, prismatic dispersion on the navigation), a bubble-sky wallpaper, pearl cards, spectrum-coloured edge lights and pixel icons; entering it bursts dot-matrix sparks and bubbles from the click point, and pressing buttons or switches releases small bubbles. Everything is drawn with CSS or canvas; no images are downloaded.
+- **Performance**: glass refraction maps are generated on a background thread, so page changes, resizes, and theme switches do not freeze the page; everyone gets the same quality, with no reduced mode.
 - A unified navigation shell with branding and actions above the server tabs, including a smooth transition between one and two rows.
 - Moving tab lenses, glass server cards, menus, and dialogs.
 - A global animation-speed slider from 0.25× to 1.5×, defaulting to 0.5×.
@@ -34,7 +35,7 @@ Read the **[complete installation, configuration, troubleshooting, and restore g
 ```bash
 git clone https://github.com/welwang/dragoncities-glass-ui.git
 cd dragoncities-glass-ui
-git checkout v1.1.0
+git checkout v1.2.0
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh --check
 PANEL_DIR=/var/www/pterodactyl bash install-dragoncities-ui.sh
 ```

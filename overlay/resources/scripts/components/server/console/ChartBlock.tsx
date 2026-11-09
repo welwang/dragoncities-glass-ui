@@ -15,7 +15,7 @@ interface ChartBlockProps {
 }
 
 export default ({ title, value, legend, children }: ChartBlockProps) => (
-    <div className={classNames(styles.chart_container, 'group')}>
+    <div className={classNames(styles.chart_container, 'group sys-card')}>
         <div className={styles.chart_header}>
             <div className={'min-w-0'}>
                 <h3 className={styles.chart_title}>{title}</h3>
